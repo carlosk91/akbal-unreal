@@ -1,0 +1,9 @@
+---
+description: Git and Unreal binary asset safety
+alwaysApply: true
+---
+
+- Do not mass-rename/move `.uasset` or `.umap` files.
+- Before changing shared binary assets, confirm ownership/LFS lock status.
+- Never commit Binaries, DerivedDataCache, Intermediate, Saved, or IDE caches.
+- Avoid unrelated binary changes in code-focused tasks.

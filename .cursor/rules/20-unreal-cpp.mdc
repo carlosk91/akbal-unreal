@@ -1,0 +1,12 @@
+---
+description: Unreal C++ conventions and architecture
+globs: "**/*.{h,cpp,cs}"
+alwaysApply: false
+---
+
+- Follow Epic Unreal C++ conventions and `GOV-003`.
+- Project prefix is `Akbal` after Unreal type prefix.
+- Stable gameplay rules belong in C++; content assembly/tuning belongs in Blueprint/Data Assets.
+- Keep implementation details Private; expose Public headers only when needed by another domain/module.
+- Timing-critical rhythm logic must use the musical conductor contract, not frame/widget timing.
+- Single-player: do not add networking/RPC architecture.

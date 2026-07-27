@@ -1,0 +1,11 @@
+---
+description: Canonical Akbal documentation rules
+globs: "Docs/**/*.md"
+alwaysApply: false
+---
+
+- Use English.
+- Preserve stable requirement IDs.
+- Mark unknowns as TBD with resolution method.
+- Avoid duplicating detailed rules across GDD/SYS/TECH/feature docs.
+- A lower-level document must not silently override a higher-level canonical contract.

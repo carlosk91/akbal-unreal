@@ -1,0 +1,9 @@
+---
+description: Spec-driven feature workflow for Akbal
+alwaysApply: true
+---
+
+- For non-trivial feature work, identify the governing SYS/TECH/ADR and feature package first.
+- `spec.md` owns behavior; `plan.md` owns implementation; `tasks.md` owns execution; `test-plan.md` owns validation.
+- If approved docs conflict, stop and report the conflict.
+- Do not implement a design decision that is explicitly TBD.
