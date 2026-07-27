@@ -1,0 +1,15 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+end_of_line = lf
+trim_trailing_whitespace = false
+
+[*.{h,cpp,cs}]
+# Formatting details follow Epic Unreal C++ style; IDE-specific Unreal formatters may override indentation.
+charset = utf-8

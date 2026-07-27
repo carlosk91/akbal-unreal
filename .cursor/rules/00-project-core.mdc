@@ -1,0 +1,10 @@
+---
+description: Akbal non-negotiable project constraints
+alwaysApply: true
+---
+
+- Read root `AGENTS.md` before non-trivial work.
+- Akbal is UE 5.7.4, Windows, single-player, hybrid C++/Blueprint.
+- Never add conventional player damage against alebrijes.
+- Do not invent unresolved design/tuning values as permanent decisions.
+- Keep changes scoped and update governing docs when contracts change.

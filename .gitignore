@@ -1,57 +1,54 @@
 # ============================================================
-# Unreal Engine 5.7 (C++)
-# Repositorio:
-#   /.git
-#   /.gitignore
-#   /Akbal
+# Akbal — Unreal Engine 5.7 (C++)
+# Repository root = Unreal project root
 # ============================================================
 
 # ############################################################
-# Unreal Engine
+# Unreal Engine — generated
 # ############################################################
 
-# Carpetas generadas
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Legacy nested project generated output (pre-flatten migration)
 Akbal/Binaries/
 Akbal/DerivedDataCache/
 Akbal/Intermediate/
 Akbal/Saved/
 
-# Plugins compilados
-Akbal/Plugins/**/Binaries/
-Akbal/Plugins/**/Intermediate/
+# Plugins compiled output
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
 
-# Autosaves y backups
-Akbal/Saved/Autosaves/
-Akbal/Saved/Backup/
-Akbal/Saved/Crashes/
-Akbal/Saved/Logs/
-Akbal/Saved/MaterialStats/
-Akbal/Saved/Temp/
+# Autosaves and backups
+Saved/Autosaves/
+Saved/Backup/
+Saved/Crashes/
+Saved/Logs/
+Saved/MaterialStats/
+Saved/Temp/
 
-# Archivos generados por Lightmass
-Akbal/**/*_BuiltData.uasset
-
-# Source Art (si los PSD/PNG originales viven fuera del proyecto puedes ignorarlos)
-Akbal/SourceArt/**/*.png
-Akbal/SourceArt/**/*.tga
-Akbal/SourceArt/**/*.psd
-Akbal/SourceArt/**/*.kra
+# Lightmass generated data
+**/*_BuiltData.uasset
 
 # Build output
-Akbal/Build/*
+Build/*
 
-# Mantener archivos importantes de Build
-!Akbal/Build/*/
-!Akbal/Build/**/*.ico
-!Akbal/Build/*/PakBlacklist*.txt
+# Keep important Build packaging files
+!Build/*/
+!Build/**/*.ico
+!Build/*/PakBlacklist*.txt
+
+# Raw/unversioned production workspace
+SourceAssets/Raw/
 
 # ############################################################
 # Visual Studio
 # ############################################################
 
 .vs/
-.vsconfig
-
 *.VC.db
 *.VC.opendb
 
@@ -93,32 +90,14 @@ _ReSharper.Caches/
 
 .vscode/
 
-# Si quieren compartir launch/tasks/settings,
-# comenta la línea anterior y usa:
-#
-# .vscode/*
-# !.vscode/settings.json
-# !.vscode/tasks.json
-# !.vscode/launch.json
-# !.vscode/extensions.json
-
 # ############################################################
-# Cursor
+# Cursor — share project rules/skills; ignore local cache
 # ############################################################
 
-.cursor/
 .cursor-cache/
 
-# Si quieren compartir reglas del proyecto,
-# comentar las líneas anteriores y usar:
-#
-# .cursor/*
-# !.cursor/rules/
-# !.cursor/rules/**
-# !.cursorignore
-
 # ############################################################
-# Archivos compilados
+# Compiled artifacts
 # ############################################################
 
 *.obj
@@ -148,7 +127,7 @@ _ReSharper.Caches/
 *LiveCoding.json
 
 # ############################################################
-# Logs
+# Logs / temp
 # ############################################################
 
 *.log
@@ -157,21 +136,20 @@ _ReSharper.Caches/
 *.bak
 
 # ############################################################
-# Crash Dumps
+# Crash dumps
 # ############################################################
 
 *.dmp
 *.stackdump
 
 # ############################################################
-# Sistemas Operativos
+# Operating systems
 # ############################################################
 
 Thumbs.db
 Desktop.ini
 .DS_Store
 
-# macOS
 .AppleDouble
 .LSOverride
 
@@ -196,13 +174,13 @@ CMakeFiles/
 CMakeCache.txt
 
 # ############################################################
-# Compilación Linux
+# Linux compilation
 # ############################################################
 
 compile_commands.json
 
 # ############################################################
-# Archivos temporales
+# Editor swap/temp files
 # ############################################################
 
 *.orig
@@ -211,11 +189,13 @@ compile_commands.json
 *.swo
 
 # ############################################################
-# NO ignorar estos directorios
+# Never ignore canonical source directories
 # ############################################################
 
-!Akbal/Config/**
-!Akbal/Content/**
-!Akbal/Plugins/**
-!Akbal/Source/**
-!Akbal/*.uproject
+!Config/**
+!Content/**
+!Plugins/**
+!Source/**
+!Docs/**
+!Scripts/**
+!*.uproject
