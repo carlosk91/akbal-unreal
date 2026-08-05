@@ -132,19 +132,8 @@ void UAkbalMusicConductorSubsystem::ResumeEncounter()
 
 FAkbalMusicalPosition UAkbalMusicConductorSubsystem::GetMusicalPosition()
 {
-	FAkbalMusicalPosition Position;
-	Position.SecondsSinceTransportStart = GetSecondsSinceTransportStart();
-
-	if (UQuartzClockHandle* Handle = GetClockHandle())
-	{
-		const FQuartzTransportTimeStamp Timestamp = Handle->GetCurrentTimestamp(this);
-		Position.Bar = Timestamp.Bars + 1;
-		Position.Beat = Timestamp.Beat + 1;
-		Position.BeatFraction = Timestamp.BeatFraction;
-		return Position;
-	}
-
-	return FAkbalMusicalPosition::FromSeconds(Position.SecondsSinceTransportStart, ActiveBeatsPerMinute, ActiveBeatsPerBar);
+	const float Seconds = GetSecondsSinceTransportStart();
+	return FAkbalMusicalPosition::FromSeconds(Seconds, ActiveBeatsPerMinute, ActiveBeatsPerBar);
 }
 
 float UAkbalMusicConductorSubsystem::GetSecondsSinceTransportStart()
@@ -166,8 +155,21 @@ FAkbalRhythmJudgmentResult UAkbalMusicConductorSubsystem::JudgeInputAtSeconds(fl
 		return LastJudgment;
 	}
 
-	LastJudgment = FAkbalRhythmJudgmentEvaluator::JudgeInputAgainstNearestBeat(InputSeconds, ActiveBeatsPerMinute, TimingWindows);
+	const float AdjustedSeconds = ApplyLatencyCompensation(InputSeconds);
+	LastJudgment = FAkbalRhythmJudgmentEvaluator::JudgeInputAgainstNearestBeat(
+		AdjustedSeconds, ActiveBeatsPerMinute, TimingWindows);
+	LastJudgment.InputSeconds = InputSeconds;
 	return LastJudgment;
+}
+
+void UAkbalMusicConductorSubsystem::SetInputLatencyOffsetMs(float InOffsetMs)
+{
+	InputLatencyOffsetMs = FMath::Clamp(InOffsetMs, -500.f, 500.f);
+}
+
+float UAkbalMusicConductorSubsystem::ApplyLatencyCompensation(float InputSeconds) const
+{
+	return InputSeconds - (InputLatencyOffsetMs * 0.001f);
 }
 
 FAkbalConductorDebugSnapshot UAkbalMusicConductorSubsystem::GetDebugSnapshot()
@@ -237,11 +239,9 @@ void UAkbalMusicConductorSubsystem::HandleBeatEvent(
 	int32 Beat,
 	float BeatFraction)
 {
-	FAkbalMusicalPosition Position;
-	Position.Bar = NumBars + 1;
-	Position.Beat = Beat + 1;
-	Position.BeatFraction = BeatFraction;
-	Position.SecondsSinceTransportStart = GetSecondsSinceTransportStart();
+	const float Seconds = GetSecondsSinceTransportStart();
+	FAkbalMusicalPosition Position = FAkbalMusicalPosition::FromSeconds(Seconds, ActiveBeatsPerMinute, ActiveBeatsPerBar);
+	Position.SecondsSinceTransportStart = Seconds;
 	LastBeatPosition = Position;
 	++BeatCallbackCount;
 	OnBeat.Broadcast(Position);

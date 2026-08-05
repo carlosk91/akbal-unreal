@@ -62,6 +62,15 @@ public:
 	FAkbalRhythmJudgmentResult JudgeInputAtSeconds(float InputSeconds);
 
 	UFUNCTION(BlueprintCallable, Category = "Akbal|Conductor")
+	float GetInputLatencyOffsetMs() const { return InputLatencyOffsetMs; }
+
+	UFUNCTION(BlueprintCallable, Category = "Akbal|Conductor")
+	void SetInputLatencyOffsetMs(float InOffsetMs);
+
+	UFUNCTION(BlueprintCallable, Category = "Akbal|Conductor")
+	float ApplyLatencyCompensation(float InputSeconds) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Akbal|Conductor")
 	FAkbalConductorDebugSnapshot GetDebugSnapshot();
 
 	UPROPERTY(BlueprintAssignable, Category = "Akbal|Conductor")
@@ -91,6 +100,7 @@ private:
 	float ActiveBeatsPerMinute = 120.f;
 	int32 ActiveBeatsPerBar = 4;
 	int32 BeatCallbackCount = 0;
+	float InputLatencyOffsetMs = 0.f;
 	FAkbalMusicalPosition LastBeatPosition;
 	FAkbalRhythmJudgmentResult LastJudgment;
 };

@@ -2,14 +2,12 @@
 
 #include "Spike/AkbalRhythmSpikeGameMode.h"
 
-#include "Spike/AkbalRhythmSpikeActor.h"
 #include "Spike/AkbalRhythmSpikePlayerController.h"
-#include "GameFramework/SpectatorPawn.h"
-#include "TimerManager.h"
+#include "Spike/AkbalRhythmSpikeCharacter.h"
 
 AAkbalRhythmSpikeGameMode::AAkbalRhythmSpikeGameMode()
 {
-	DefaultPawnClass = ASpectatorPawn::StaticClass();
+	DefaultPawnClass = AAkbalRhythmSpikeCharacter::StaticClass();
 	PlayerControllerClass = AAkbalRhythmSpikePlayerController::StaticClass();
 }
 

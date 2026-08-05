@@ -1,509 +1,1209 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
+
 #include "UI/Spike/AkbalRhythmSpikeWidget.h"
 
+
+
 #include "Audio/AkbalMusicConductorSubsystem.h"
+
 #include "Audio/AkbalMusicalPosition.h"
+
 #include "Blueprint/WidgetTree.h"
+
 #include "Components/Border.h"
+
 #include "Components/Button.h"
+
 #include "Components/CanvasPanel.h"
+
 #include "Components/CanvasPanelSlot.h"
+
 #include "Components/HorizontalBox.h"
+
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/ProgressBar.h"
-#include "Components/SizeBox.h"
+
 #include "Components/TextBlock.h"
+
 #include "Components/VerticalBox.h"
+
 #include "Components/VerticalBoxSlot.h"
+
+#include "Engine/Engine.h"
+
 #include "GameFramework/PlayerController.h"
+
+#include "Input/AkbalRhythmChartEvaluator.h"
+
+#include "Input/AkbalRhythmChartTypes.h"
+
 #include "Kismet/GameplayStatics.h"
 
-namespace AkbalRhythmSpikeWidgetStyle
+#include "Rendering/DrawElements.h"
+
+#include "Styling/CoreStyle.h"
+
+
+
+namespace AkbalRhythmGameStyle
+
 {
-	static const FLinearColor PanelColor(0.02f, 0.03f, 0.06f, 0.92f);
-	static const FLinearColor BeatIdleColor(0.15f, 0.18f, 0.24f, 1.f);
-	static const FLinearColor BeatActiveColor(0.95f, 0.55f, 0.12f, 1.f);
-	static const FLinearColor BeatCurrentColor(1.f, 0.82f, 0.2f, 1.f);
-	static const FLinearColor TapIdleColor(0.12f, 0.45f, 0.72f, 1.f);
-	static const FLinearColor TapPressedColor(0.2f, 0.65f, 0.95f, 1.f);
 
 	static FSlateBrush MakeBoxBrush(const FLinearColor& Color)
+
 	{
+
 		FSlateBrush Brush;
+
 		Brush.DrawAs = ESlateBrushDrawType::Box;
+
 		Brush.TintColor = FSlateColor(Color);
+
 		Brush.ImageSize = FVector2D(1.f, 1.f);
+
 		return Brush;
+
 	}
+
 }
 
-#include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
+
 
 UAkbalRhythmSpikeWidget::UAkbalRhythmSpikeWidget(const FObjectInitializer& ObjectInitializer)
+
 	: Super(ObjectInitializer)
+
 {
+
 }
+
+
 
 TSharedRef<SWidget> UAkbalRhythmSpikeWidget::RebuildWidget()
+
 {
+
 	if (WidgetTree && !bWidgetBuilt)
+
 	{
+
 		BuildWidgetTree();
+
 	}
+
+
 
 	if (WidgetTree && WidgetTree->RootWidget)
+
 	{
+
 		return WidgetTree->RootWidget->TakeWidget();
+
 	}
+
+
 
 	return Super::RebuildWidget();
+
 }
+
+
 
 void UAkbalRhythmSpikeWidget::NativeConstruct()
+
 {
+
 	Super::NativeConstruct();
 
+
+
 	Conductor = UAkbalMusicConductorSubsystem::Get(this);
-	SetIsFocusable(true);
+
+	BuildChart();
+
+	RefreshLatencyLabel();
+
+	SetIsFocusable(false);
+
 }
+
+
 
 void UAkbalRhythmSpikeWidget::ConfigureSpike(float InBeatsPerMinute, int32 InBeatsPerBar)
+
 {
+
 	SpikeBeatsPerMinute = InBeatsPerMinute;
+
 	SpikeBeatsPerBar = FMath::Max(1, InBeatsPerBar);
 
-	if (bWidgetBuilt)
-	{
-		RebuildBeatIndicators();
-	}
+	BuildChart();
+
 }
+
+
+
+void UAkbalRhythmSpikeWidget::RestartChart()
+
+{
+
+	BuildChart();
+
+	if (JudgmentText)
+
+	{
+
+		JudgmentText->SetText(FText::FromString(TEXT("Hit arrow keys when notes reach the center")));
+
+		JudgmentText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+
+	}
+
+}
+
+
+
+void UAkbalRhythmSpikeWidget::SetActiveInstrument(EAkbalRhythmInstrument Instrument)
+{
+	ActiveInstrument = Instrument;
+}
+
+
+
+void UAkbalRhythmSpikeWidget::CycleActiveInstrument(int32 Delta)
+
+{
+
+	const int32 CurrentIndex = FAkbalRhythmInstrumentLibrary::IndexFromInstrument(ActiveInstrument);
+
+	const int32 NextIndex = (CurrentIndex + Delta + FAkbalRhythmInstrumentLibrary::InstrumentCount)
+
+		% FAkbalRhythmInstrumentLibrary::InstrumentCount;
+
+	SetActiveInstrument(FAkbalRhythmInstrumentLibrary::InstrumentFromIndex(NextIndex));
+
+}
+
+
+
+void UAkbalRhythmSpikeWidget::BuildChart()
+
+{
+
+	ChartStates.Reset();
+
+	const TArray<FAkbalRhythmChartNote> Notes = FAkbalRhythmChartBuilder::BuildSpikeTestChart(SpikeBeatsPerMinute);
+
+
+
+	for (const FAkbalRhythmChartNote& Note : Notes)
+
+	{
+
+		FAkbalRhythmChartNoteState State;
+
+		State.Note = Note;
+
+		ChartStates.Add(State);
+
+	}
+
+}
+
+
 
 void UAkbalRhythmSpikeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+
 {
+
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+
+
 	if (!Conductor)
+
 	{
+
 		return;
+
 	}
 
-	RefreshVisuals(Conductor->GetDebugSnapshot());
+
+
+	const float CurrentSeconds = Conductor->GetSecondsSinceTransportStart();
+
+	UpdateChartState(CurrentSeconds);
+
+
+
+	if (StatusText)
+
+	{
+
+		const FAkbalMusicalPosition Position = Conductor->GetMusicalPosition();
+
+		StatusText->SetText(FText::FromString(FString::Printf(
+
+			TEXT("Bar %d | Beat %d/%d | %.1f BPM | Latency %+.0f ms"),
+
+			Position.Bar,
+
+			Position.Beat,
+
+			SpikeBeatsPerBar,
+
+			Conductor->GetBeatsPerMinute(),
+
+			Conductor->GetInputLatencyOffsetMs())));
+	}
+
+	RefreshGameplayLabels(CurrentSeconds);
 
 	if (JudgmentFlashTimeRemaining > 0.f)
+
 	{
+
 		JudgmentFlashTimeRemaining = FMath::Max(0.f, JudgmentFlashTimeRemaining - InDeltaTime);
-		if (JudgmentFlashOverlay)
-		{
-			const float Alpha = FMath::Clamp(JudgmentFlashTimeRemaining / 0.35f, 0.f, 1.f) * 0.45f;
-			FLinearColor FlashColor = JudgmentFlashOverlay->GetBrushColor();
-			FlashColor.A = Alpha;
-			JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FlashColor));
-			JudgmentFlashOverlay->SetVisibility(Alpha > 0.01f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		}
+
 	}
+
+	Invalidate(EInvalidateWidget::Paint);
+
 }
+
+
+
+void UAkbalRhythmSpikeWidget::UpdateChartState(float CurrentSeconds)
+
+{
+
+	if (!Conductor)
+
+	{
+
+		return;
+
+	}
+
+
+
+	const FAkbalRhythmTimingWindows& Windows = Conductor->TimingWindows;
+
+	for (FAkbalRhythmChartNoteState& State : ChartStates)
+
+	{
+
+		if (State.bConsumed || State.bMissed || !State.Note.bRequired)
+
+		{
+
+			continue;
+
+		}
+
+
+
+		if (FAkbalRhythmChartEvaluator::ShouldAutoMissNote(CurrentSeconds, State.Note.TargetSeconds, Windows))
+
+		{
+
+			State.bMissed = true;
+
+		}
+
+	}
+
+}
+
+
+
+bool UAkbalRhythmSpikeWidget::ProcessLaneInput(EAkbalRhythmLane Lane)
+
+{
+
+	if (!Conductor)
+
+	{
+
+		return false;
+
+	}
+
+
+
+	const float RawInputSeconds = Conductor->GetSecondsSinceTransportStart();
+
+	const float AdjustedInputSeconds = Conductor->ApplyLatencyCompensation(RawInputSeconds);
+
+
+
+	int32 MatchedNoteIndex = INDEX_NONE;
+
+	LastJudgment = FAkbalRhythmChartEvaluator::JudgeInputAgainstChart(
+
+		AdjustedInputSeconds,
+
+		Lane,
+
+		ActiveInstrument,
+
+		ChartStates,
+
+		Conductor->TimingWindows,
+
+		MatchedNoteIndex);
+
+	LastJudgment.InputSeconds = RawInputSeconds;
+
+
+
+	if (MatchedNoteIndex != INDEX_NONE)
+
+	{
+
+		ChartStates[MatchedNoteIndex].bConsumed = true;
+
+	}
+
+
+
+	ApplyJudgmentFeedback(LastJudgment.Judgment);
+
+	OnTapSubmitted.Broadcast(LastJudgment);
+
+	return MatchedNoteIndex != INDEX_NONE;
+
+}
+
+
 
 void UAkbalRhythmSpikeWidget::BuildWidgetTree()
+
 {
+
 	if (!WidgetTree || bWidgetBuilt)
+
 	{
+
 		return;
+
 	}
 
-	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RootBorder"));
-	RootBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::PanelColor));
-	RootBorder->SetPadding(FMargin(24.f));
 
-	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
+
+	RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
+
 	WidgetTree->RootWidget = RootCanvas;
 
-	if (UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(RootBorder))
-	{
-		BorderSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
-		BorderSlot->SetOffsets(FMargin(0.f));
-	}
 
-	RootBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RootBox"));
-	RootBorder->SetContent(RootBox);
 
-	auto AddTextBlock = [this](const FName& Name, int32 FontSize, ETextJustify::Type Justify) -> UTextBlock*
+	auto MakeText = [this](const FName& Name, int32 FontSize) -> UTextBlock*
+
 	{
+
 		UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
+
 		FSlateFontInfo Font = Text->GetFont();
+
 		Font.Size = FontSize;
+
 		Text->SetFont(Font);
-		Text->SetJustification(Justify);
+
 		Text->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+
 		return Text;
+
 	};
 
-	StateText = AddTextBlock(TEXT("StateText"), 20, ETextJustify::Center);
-	if (UVerticalBoxSlot* StateSlot = RootBox->AddChildToVerticalBox(StateText))
+
+
+	auto AddButton = [this](const FName& Name, const FString& Label) -> UButton*
+
 	{
-		StateSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
-		StateSlot->SetHorizontalAlignment(HAlign_Center);
-	}
 
-	PositionText = AddTextBlock(TEXT("PositionText"), 28, ETextJustify::Center);
-	if (UVerticalBoxSlot* PositionSlot = RootBox->AddChildToVerticalBox(PositionText))
-	{
-		PositionSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
-		PositionSlot->SetHorizontalAlignment(HAlign_Center);
-	}
-
-	BeatIndicatorRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BeatIndicatorRow"));
-	if (UVerticalBoxSlot* BeatRowSlot = RootBox->AddChildToVerticalBox(BeatIndicatorRow))
-	{
-		BeatRowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 12.f));
-		BeatRowSlot->SetHorizontalAlignment(HAlign_Center);
-	}
-	RebuildBeatIndicators();
-
-	BeatProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("BeatProgressBar"));
-	BeatProgressBar->SetPercent(0.f);
-	BeatProgressBar->SetFillColorAndOpacity(AkbalRhythmSpikeWidgetStyle::BeatCurrentColor);
-	if (UVerticalBoxSlot* ProgressSlot = RootBox->AddChildToVerticalBox(BeatProgressBar))
-	{
-		ProgressSlot->SetPadding(FMargin(40.f, 0.f, 40.f, 24.f));
-		ProgressSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	}
-
-	UButton* TapButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("TapButton"));
-	TapButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandleTapClicked);
-
-	TapButtonBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TapButtonBorder"));
-	TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapIdleColor));
-	TapButtonBorder->SetPadding(FMargin(32.f, 24.f));
-	TapButton->SetContent(TapButtonBorder);
-
-	UTextBlock* TapLabel = AddTextBlock(TEXT("TapLabel"), 42, ETextJustify::Center);
-	TapLabel->SetText(FText::FromString(TEXT("TAP")));
-	TapLabel->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-	TapButtonBorder->SetContent(TapLabel);
-
-	if (UVerticalBoxSlot* TapSlot = RootBox->AddChildToVerticalBox(TapButton))
-	{
-		TapSlot->SetPadding(FMargin(80.f, 8.f, 80.f, 24.f));
-		TapSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		TapSlot->SetHorizontalAlignment(HAlign_Center);
-		TapSlot->SetVerticalAlignment(VAlign_Center);
-	}
-
-	JudgmentText = AddTextBlock(TEXT("JudgmentText"), 36, ETextJustify::Center);
-	JudgmentText->SetText(FText::FromString(TEXT("Tap on the beat")));
-	if (UVerticalBoxSlot* JudgmentSlot = RootBox->AddChildToVerticalBox(JudgmentText))
-	{
-		JudgmentSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
-		JudgmentSlot->SetHorizontalAlignment(HAlign_Center);
-	}
-
-	DeltaText = AddTextBlock(TEXT("DeltaText"), 18, ETextJustify::Center);
-	DeltaText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.85f, 0.9f, 1.f)));
-	if (UVerticalBoxSlot* DeltaSlot = RootBox->AddChildToVerticalBox(DeltaText))
-	{
-		DeltaSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
-		DeltaSlot->SetHorizontalAlignment(HAlign_Center);
-	}
-
-	LatencyText = AddTextBlock(TEXT("LatencyText"), 14, ETextJustify::Center);
-	LatencyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.62f, 0.7f, 1.f)));
-	if (UVerticalBoxSlot* LatencySlot = RootBox->AddChildToVerticalBox(LatencyText))
-	{
-		LatencySlot->SetPadding(FMargin(0.f, 0.f, 0.f, 16.f));
-		LatencySlot->SetHorizontalAlignment(HAlign_Center);
-	}
-
-	UHorizontalBox* ControlRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ControlRow"));
-	if (UVerticalBoxSlot* ControlSlot = RootBox->AddChildToVerticalBox(ControlRow))
-	{
-		ControlSlot->SetHorizontalAlignment(HAlign_Center);
-	}
-
-	auto AddControlButton = [this, ControlRow](const FName& Name, const FString& Label) -> UButton*
-	{
 		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
 
-		UBorder* ButtonBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FLinearColor(0.18f, 0.22f, 0.28f, 1.f)));
-		ButtonBorder->SetPadding(FMargin(18.f, 10.f));
+		UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 
-		UTextBlock* ButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo Font = ButtonLabel->GetFont();
-		Font.Size = 16;
-		ButtonLabel->SetFont(Font);
-		ButtonLabel->SetText(FText::FromString(Label));
-		ButtonLabel->SetJustification(ETextJustify::Center);
-		ButtonBorder->SetContent(ButtonLabel);
-		Button->SetContent(ButtonBorder);
+		Border->SetBrush(AkbalRhythmGameStyle::MakeBoxBrush(FLinearColor(0.12f, 0.18f, 0.28f, 0.9f)));
 
-		if (UHorizontalBoxSlot* ButtonSlot = ControlRow->AddChildToHorizontalBox(Button))
-		{
-			ButtonSlot->SetPadding(FMargin(8.f, 0.f));
-		}
+		Border->SetPadding(FMargin(12.f, 6.f));
+
+		UTextBlock* LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+
+		FSlateFontInfo Font = LabelText->GetFont();
+
+		Font.Size = 14;
+
+		LabelText->SetFont(Font);
+
+		LabelText->SetText(FText::FromString(Label));
+
+		LabelText->SetJustification(ETextJustify::Center);
+
+		Border->SetContent(LabelText);
+
+		Button->SetContent(Border);
 
 		return Button;
+
 	};
 
-	if (UButton* PauseButton = AddControlButton(TEXT("PauseButton"), TEXT("Pause")))
+
+
+	UBorder* MenuPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MenuPanel"));
+
+	MenuPanel->SetBrush(AkbalRhythmGameStyle::MakeBoxBrush(FLinearColor(0.02f, 0.04f, 0.08f, 0.85f)));
+
+	MenuPanel->SetPadding(FMargin(12.f));
+
+
+
+	UVerticalBox* MenuBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MenuBox"));
+
+	MenuPanel->SetContent(MenuBox);
+
+
+
+	StatusText = MakeText(TEXT("StatusText"), 14);
+
+	if (UVerticalBoxSlot* StatusSlot = MenuBox->AddChildToVerticalBox(StatusText))
+
 	{
+
+		StatusSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+
+	}
+
+
+
+	InstrumentText = MakeText(TEXT("InstrumentText"), 16);
+
+	if (UVerticalBoxSlot* InstrumentSlot = MenuBox->AddChildToVerticalBox(InstrumentText))
+
+	{
+
+		InstrumentSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+
+	}
+
+
+
+	ControlsText = MakeText(TEXT("ControlsText"), 12);
+
+	ControlsText->SetText(FText::FromString(
+
+		TEXT("Arrows: lane input | Q/E: switch instrument (chart keeps progress)\nGhost notes = other instruments | P: pause | R: restart")));
+
+	if (UVerticalBoxSlot* ControlsSlot = MenuBox->AddChildToVerticalBox(ControlsText))
+
+	{
+
+		ControlsSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+
+	}
+
+
+
+	JudgmentText = MakeText(TEXT("JudgmentText"), 18);
+
+	JudgmentText->SetText(FText::FromString(TEXT("Hit arrow keys when notes reach the center")));
+
+	if (UVerticalBoxSlot* JudgmentSlot = MenuBox->AddChildToVerticalBox(JudgmentText))
+
+	{
+
+		JudgmentSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+
+	}
+
+
+
+	UTextBlock* LatencyLabel = MakeText(TEXT("LatencyLabel"), 13);
+
+	LatencyLabel->SetText(FText::FromString(TEXT("Input Latency Compensation")));
+
+	if (UVerticalBoxSlot* LatencyLabelSlot = MenuBox->AddChildToVerticalBox(LatencyLabel))
+
+	{
+
+		LatencyLabelSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+
+	}
+
+
+
+	UHorizontalBox* LatencyRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LatencyRow"));
+
+	if (UVerticalBoxSlot* LatencyRowSlot = MenuBox->AddChildToVerticalBox(LatencyRow))
+
+	{
+
+		LatencyRowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+
+	}
+
+
+
+	if (UButton* DecreaseButton = AddButton(TEXT("LatencyDecrease"), TEXT("-10ms")))
+
+	{
+
+		DecreaseButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandleLatencyDecrease);
+
+		LatencyRow->AddChildToHorizontalBox(DecreaseButton);
+
+	}
+
+
+
+	LatencyValueText = MakeText(TEXT("LatencyValueText"), 14);
+
+	LatencyValueText->SetJustification(ETextJustify::Center);
+
+	if (UHorizontalBoxSlot* ValueSlot = LatencyRow->AddChildToHorizontalBox(LatencyValueText))
+
+	{
+
+		ValueSlot->SetPadding(FMargin(8.f, 0.f));
+
+	}
+
+
+
+	if (UButton* IncreaseButton = AddButton(TEXT("LatencyIncrease"), TEXT("+10ms")))
+
+	{
+
+		IncreaseButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandleLatencyIncrease);
+
+		LatencyRow->AddChildToHorizontalBox(IncreaseButton);
+
+	}
+
+
+
+	if (UButton* PauseButton = AddButton(TEXT("PauseButton"), TEXT("Pause")))
+
+	{
+
 		PauseButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandlePauseClicked);
+
+		MenuBox->AddChildToVerticalBox(PauseButton);
+
 	}
 
-	if (UButton* RestartButton = AddControlButton(TEXT("RestartButton"), TEXT("Restart")))
+
+
+	if (UButton* RestartButton = AddButton(TEXT("RestartButton"), TEXT("Restart")))
+
 	{
+
 		RestartButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandleRestartClicked);
+
+		if (UVerticalBoxSlot* RestartSlot = MenuBox->AddChildToVerticalBox(RestartButton))
+
+		{
+
+			RestartSlot->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+
+		}
+
 	}
 
-	JudgmentFlashOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JudgmentFlashOverlay"));
-	JudgmentFlashOverlay->SetVisibility(ESlateVisibility::Collapsed);
-	JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FLinearColor::Transparent));
-	if (UCanvasPanelSlot* FlashSlot = RootCanvas->AddChildToCanvas(JudgmentFlashOverlay))
+
+
+	if (UCanvasPanelSlot* MenuSlot = RootCanvas->AddChildToCanvas(MenuPanel))
+
 	{
-		FlashSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
-		FlashSlot->SetOffsets(FMargin(0.f));
-		FlashSlot->SetZOrder(10);
+
+		MenuSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
+
+		MenuSlot->SetAlignment(FVector2D(1.f, 0.f));
+
+		MenuSlot->SetPosition(FVector2D(-16.f, 16.f));
+
+		MenuSlot->SetAutoSize(true);
+
+		MenuSlot->SetZOrder(20);
+
 	}
+
+
 
 	bWidgetBuilt = true;
+
 }
 
-void UAkbalRhythmSpikeWidget::RebuildBeatIndicators()
+
+
+void UAkbalRhythmSpikeWidget::RefreshLatencyLabel() const
+
 {
-	if (!BeatIndicatorRow)
+
+	if (LatencyValueText && Conductor)
+
+	{
+
+		LatencyValueText->SetText(FText::FromString(FString::Printf(
+
+			TEXT("%+.0f ms"),
+
+			Conductor->GetInputLatencyOffsetMs())));
+
+	}
+
+}
+
+
+
+void UAkbalRhythmSpikeWidget::RefreshGameplayLabels(float CurrentSeconds)
+{
+	if (!InstrumentText)
 	{
 		return;
 	}
 
-	BeatIndicatorRow->ClearChildren();
-	BeatIndicators.Reset();
-
-	for (int32 BeatIndex = 0; BeatIndex < SpikeBeatsPerBar; ++BeatIndex)
+	const FLinearColor ActiveColor = FAkbalRhythmInstrumentLibrary::GetPrimaryColor(ActiveInstrument);
+	FAkbalRhythmChartNote NextNote;
+	if (Conductor && FAkbalRhythmChartEvaluator::FindNextRequiredNote(
+		ChartStates, CurrentSeconds, Conductor->TimingWindows, NextNote))
 	{
-		const FName BorderName = *FString::Printf(TEXT("BeatIndicator_%d"), BeatIndex);
-		UBorder* Indicator = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), BorderName);
-		Indicator->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::BeatIdleColor));
-		Indicator->SetPadding(FMargin(0.f));
-
-		USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		SizeBox->SetWidthOverride(48.f);
-		SizeBox->SetHeightOverride(48.f);
-		SizeBox->SetContent(Indicator);
-
-		if (UHorizontalBoxSlot* IndicatorSlot = BeatIndicatorRow->AddChildToHorizontalBox(SizeBox))
-		{
-			IndicatorSlot->SetPadding(FMargin(8.f, 0.f));
-			IndicatorSlot->SetVerticalAlignment(VAlign_Center);
-		}
-
-		BeatIndicators.Add(Indicator);
+		const FLinearColor NextColor = FAkbalRhythmInstrumentLibrary::GetPrimaryColor(NextNote.Instrument);
+		const bool bNextMatchesActive = NextNote.Instrument == ActiveInstrument;
+		InstrumentText->SetText(FText::FromString(FString::Printf(
+			TEXT("Playing: %s | Next: %s + %s arrow%s"),
+			*FAkbalRhythmInstrumentLibrary::GetDisplayName(ActiveInstrument),
+			*FAkbalRhythmInstrumentLibrary::GetDisplayName(NextNote.Instrument),
+			*FAkbalRhythmLaneInput::GetArrowKeyLabel(NextNote.Lane),
+			bNextMatchesActive ? TEXT("") : TEXT(" (switch Q/E)"))));
+		InstrumentText->SetColorAndOpacity(FSlateColor(bNextMatchesActive ? ActiveColor : NextColor));
+	}
+	else
+	{
+		InstrumentText->SetText(FText::FromString(FString::Printf(
+			TEXT("Playing: %s  (Q/E to switch)"),
+			*FAkbalRhythmInstrumentLibrary::GetDisplayName(ActiveInstrument))));
+		InstrumentText->SetColorAndOpacity(FSlateColor(ActiveColor));
 	}
 }
 
-void UAkbalRhythmSpikeWidget::RefreshVisuals(const FAkbalConductorDebugSnapshot& Snapshot)
+
+
+FVector2D UAkbalRhythmSpikeWidget::GetLanePosition(
+
+	const FVector2D& Center,
+
+	const FVector2D& Size,
+
+	EAkbalRhythmLane Lane,
+
+	float Progress) const
+
 {
-	if (StateText)
+
+	FVector2D Start = Center;
+
+	const float EdgePadding = 48.f;
+
+
+
+	switch (Lane)
+
 	{
-		const FString StateLabel = Snapshot.bPaused ? TEXT("Paused") : (Snapshot.bClockRunning ? TEXT("Running") : TEXT("Stopped"));
-		StateText->SetText(FText::FromString(FString::Printf(TEXT("%s  |  %.0f BPM"), *StateLabel, Snapshot.BeatsPerMinute)));
+
+	case EAkbalRhythmLane::LeftToRight:
+
+		Start = FVector2D(EdgePadding, Center.Y);
+
+		break;
+
+	case EAkbalRhythmLane::RightToLeft:
+
+		Start = FVector2D(Size.X - EdgePadding, Center.Y);
+
+		break;
+
+	case EAkbalRhythmLane::TopToBottom:
+
+		Start = FVector2D(Center.X, EdgePadding);
+
+		break;
+
+	case EAkbalRhythmLane::BottomToTop:
+
+		Start = FVector2D(Center.X, Size.Y - EdgePadding);
+
+		break;
+
+	default:
+
+		break;
+
 	}
 
-	if (PositionText)
+
+
+	return FMath::Lerp(Start, Center, Progress);
+
+}
+
+
+
+void UAkbalRhythmSpikeWidget::DrawInstrumentNote(
+	const FGeometry& AllottedGeometry,
+	FSlateWindowElementList& OutDrawElements,
+	int32 LayerId,
+	const FVector2D& Position,
+	float Radius,
+	EAkbalRhythmInstrument Instrument,
+	const FLinearColor& Color,
+	bool bGhostNote) const
+{
+	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
+
+	auto ScaleAlpha = [](const FLinearColor& Source, float Multiplier)
 	{
-		PositionText->SetText(FText::FromString(FString::Printf(
-			TEXT("Bar %d  |  Beat %d  |  %.2fs"),
-			Snapshot.Position.Bar,
-			Snapshot.Position.Beat,
-			Snapshot.Position.SecondsSinceTransportStart)));
+		return FLinearColor(Source.R, Source.G, Source.B, Source.A * Multiplier);
+	};
+
+	auto DrawBox = [&](const FVector2D& TopLeft, const FVector2D& BoxSize, const FLinearColor& BoxColor, int32 LocalLayer)
+	{
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			LocalLayer,
+			AllottedGeometry.ToPaintGeometry(FVector2f(BoxSize), FSlateLayoutTransform(FVector2f(TopLeft))),
+			WhiteBrush,
+			ESlateDrawEffect::None,
+			BoxColor);
+	};
+
+	auto DrawPolyline = [&](const TArray<FVector2D>& Points, const FLinearColor& LineColor, float Thickness, int32 LocalLayer)
+	{
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			LocalLayer,
+			AllottedGeometry.ToPaintGeometry(),
+			Points,
+			ESlateDrawEffect::None,
+			LineColor,
+			true,
+			Thickness);
+	};
+
+	if (bGhostNote)
+	{
+		const FLinearColor OutlineColor = FLinearColor::White.CopyWithNewOpacity(GhostOutlineAlpha);
+		DrawBox(
+			Position - FVector2D(Radius + 2.f, Radius + 2.f),
+			FVector2D((Radius + 2.f) * 2.f, (Radius + 2.f) * 2.f),
+			OutlineColor,
+			LayerId);
 	}
 
-	for (int32 BeatIndex = 0; BeatIndex < BeatIndicators.Num(); ++BeatIndex)
+	switch (Instrument)
 	{
-		if (!BeatIndicators[BeatIndex])
+	case EAkbalRhythmInstrument::Drum:
+		DrawBox(
+			Position - FVector2D(Radius, Radius),
+			FVector2D(Radius * 2.f, Radius * 2.f),
+			Color,
+			LayerId + 1);
+		break;
+
+	case EAkbalRhythmInstrument::Chime:
+	{
+		TArray<FVector2D> Diamond;
+		Diamond.Add(Position + FVector2D(0.f, -Radius));
+		Diamond.Add(Position + FVector2D(Radius, 0.f));
+		Diamond.Add(Position + FVector2D(0.f, Radius));
+		Diamond.Add(Position + FVector2D(-Radius, 0.f));
+		Diamond.Add(Position + FVector2D(0.f, -Radius));
+		DrawPolyline(Diamond, Color, bGhostNote ? 3.f : 4.f, LayerId + 1);
+		DrawBox(
+			Position - FVector2D(Radius * 0.45f, Radius * 0.45f),
+			FVector2D(Radius * 0.9f, Radius * 0.9f),
+			ScaleAlpha(Color, 0.5f),
+			LayerId + 2);
+		break;
+	}
+
+	case EAkbalRhythmInstrument::String:
+		DrawBox(
+			Position - FVector2D(Radius * 1.35f, Radius * 0.65f),
+			FVector2D(Radius * 2.7f, Radius * 1.3f),
+			Color,
+			LayerId + 1);
+		break;
+
+	case EAkbalRhythmInstrument::Wind:
+	default:
+	{
+		TArray<FVector2D> Triangle;
+		Triangle.Add(Position + FVector2D(0.f, -Radius));
+		Triangle.Add(Position + FVector2D(Radius * 0.95f, Radius * 0.85f));
+		Triangle.Add(Position + FVector2D(-Radius * 0.95f, Radius * 0.85f));
+		Triangle.Add(Position + FVector2D(0.f, -Radius));
+		DrawPolyline(Triangle, Color, bGhostNote ? 3.f : 4.f, LayerId + 1);
+		DrawBox(
+			Position - FVector2D(Radius * 0.35f, Radius * 0.35f),
+			FVector2D(Radius * 0.7f, Radius * 0.7f),
+			ScaleAlpha(Color, 0.45f),
+			LayerId + 2);
+		break;
+	}
+	}
+}
+
+
+
+int32 UAkbalRhythmSpikeWidget::NativePaint(
+
+	const FPaintArgs& Args,
+
+	const FGeometry& AllottedGeometry,
+
+	const FSlateRect& MyCullingRect,
+
+	FSlateWindowElementList& OutDrawElements,
+
+	int32 LayerId,
+
+	const FWidgetStyle& InWidgetStyle,
+
+	bool bParentEnabled) const
+
+{
+
+	const FVector2D Size = AllottedGeometry.GetLocalSize();
+
+	const FVector2D Center(Size.X * 0.5f, Size.Y * 0.5f);
+
+	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
+
+
+
+	auto DrawLine = [&](const FVector2D& Start, const FVector2D& End, const FLinearColor& Color, float Thickness)
+
+	{
+
+		TArray<FVector2D> Points;
+
+		Points.Add(Start);
+
+		Points.Add(End);
+
+		FSlateDrawElement::MakeLines(
+
+			OutDrawElements,
+
+			LayerId + 1,
+
+			AllottedGeometry.ToPaintGeometry(),
+
+			Points,
+
+			ESlateDrawEffect::None,
+
+			Color,
+
+			true,
+
+			Thickness);
+
+	};
+
+
+
+	auto DrawCircle = [&](const FVector2D& Position, float Radius, const FLinearColor& Color, int32 LocalLayer)
+
+	{
+
+		const FVector2f TopLeft(Position.X - Radius, Position.Y - Radius);
+
+		const FVector2f BoxSize(Radius * 2.f, Radius * 2.f);
+
+		FSlateDrawElement::MakeBox(
+
+			OutDrawElements,
+
+			LocalLayer,
+
+			AllottedGeometry.ToPaintGeometry(BoxSize, FSlateLayoutTransform(TopLeft)),
+
+			WhiteBrush,
+
+			ESlateDrawEffect::None,
+
+			Color);
+
+	};
+
+
+
+	const FLinearColor ActiveLaneColor = FAkbalRhythmInstrumentLibrary::GetPrimaryColor(ActiveInstrument).CopyWithNewOpacity(0.65f);
+
+	DrawLine(FVector2D(48.f, Center.Y), Center, ActiveLaneColor, 3.f);
+
+	DrawLine(FVector2D(Size.X - 48.f, Center.Y), Center, ActiveLaneColor, 3.f);
+
+	DrawLine(FVector2D(Center.X, 48.f), Center, ActiveLaneColor, 3.f);
+
+	DrawLine(FVector2D(Center.X, Size.Y - 48.f), Center, ActiveLaneColor, 3.f);
+
+
+
+	FLinearColor CenterColor = FAkbalRhythmInstrumentLibrary::GetPrimaryColor(ActiveInstrument).CopyWithNewOpacity(0.22f);
+
+	if (JudgmentFlashTimeRemaining > 0.f)
+
+	{
+
+		const float FlashAlpha = FMath::Clamp(JudgmentFlashTimeRemaining / 0.35f, 0.f, 1.f);
+
+		CenterColor = FMath::Lerp(CenterColor, GetJudgmentColor(LastJudgment.Judgment).CopyWithNewOpacity(0.55f), FlashAlpha);
+
+	}
+
+	DrawCircle(Center, CenterZoneRadius, CenterColor, LayerId + 2);
+	DrawCircle(Center, CenterZoneRadius, FAkbalRhythmInstrumentLibrary::GetPrimaryColor(ActiveInstrument).CopyWithNewOpacity(0.35f), LayerId + 3);
+
+	const float CurrentSeconds = Conductor ? Conductor->GetSecondsSinceTransportStart() : 0.f;
+	const int32 GhostNoteLayer = LayerId + 5;
+	const int32 ActiveNoteLayer = LayerId + 8;
+
+	auto DrawVisibleNote = [&](const FAkbalRhythmChartNoteState& State, bool bActiveInstrument, int32 LocalLayer)
+	{
+		const float Progress = FAkbalRhythmChartEvaluator::GetNoteApproachProgress(
+			CurrentSeconds, State.Note.TargetSeconds, NoteApproachSeconds);
+
+		if (Progress >= 1.f)
+		{
+			return;
+		}
+
+		const FVector2D NotePosition = GetLanePosition(Center, Size, State.Note.Lane, Progress);
+		const FLinearColor BaseColor = FAkbalRhythmInstrumentLibrary::GetPrimaryColor(State.Note.Instrument);
+		const float Radius = bActiveInstrument ? NoteRadius : NoteRadius * GhostNoteScale;
+		const FLinearColor NoteColor = bActiveInstrument
+			? BaseColor
+			: BaseColor.CopyWithNewOpacity(GhostNoteAlpha);
+		DrawInstrumentNote(
+			AllottedGeometry,
+			OutDrawElements,
+			LocalLayer,
+			NotePosition,
+			Radius,
+			State.Note.Instrument,
+			NoteColor,
+			!bActiveInstrument);
+	};
+
+	for (const FAkbalRhythmChartNoteState& State : ChartStates)
+	{
+		if (State.bConsumed || State.bMissed || !State.Note.bRequired)
 		{
 			continue;
 		}
 
-		const int32 BeatNumber = BeatIndex + 1;
-		FLinearColor Color = AkbalRhythmSpikeWidgetStyle::BeatIdleColor;
-		if (BeatNumber == Snapshot.Position.Beat)
+		if (State.Note.Instrument == ActiveInstrument)
 		{
-			Color = FMath::Lerp(
-				AkbalRhythmSpikeWidgetStyle::BeatActiveColor,
-				AkbalRhythmSpikeWidgetStyle::BeatCurrentColor,
-				Snapshot.Position.BeatFraction);
-		}
-		else if (BeatNumber < Snapshot.Position.Beat)
-		{
-			Color = AkbalRhythmSpikeWidgetStyle::BeatActiveColor;
+			continue;
 		}
 
-		BeatIndicators[BeatIndex]->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(Color));
+		DrawVisibleNote(State, false, GhostNoteLayer);
 	}
 
-	if (BeatProgressBar)
+	for (const FAkbalRhythmChartNoteState& State : ChartStates)
 	{
-		BeatProgressBar->SetPercent(FMath::Clamp(Snapshot.Position.BeatFraction, 0.f, 1.f));
-	}
-
-	if (LatencyText)
-	{
-		LatencyText->SetText(FText::FromString(FString::Printf(
-			TEXT("Round-trip %.1f ms  |  Game->Audio %.1f ms  |  Beat callbacks %d"),
-			Snapshot.RoundTripLatencyMs,
-			Snapshot.GameToAudioLatencyMs,
-			Snapshot.BeatCallbackCount)));
-	}
-
-	if (Snapshot.LastJudgment.Judgment != EAkbalRhythmJudgment::Miss || Snapshot.LastJudgment.InputSeconds > 0.f)
-	{
-		if (JudgmentText)
+		if (State.bConsumed || State.bMissed || !State.Note.bRequired)
 		{
-			JudgmentText->SetText(FormatJudgmentText(Snapshot.LastJudgment.Judgment));
-			JudgmentText->SetColorAndOpacity(FSlateColor(GetJudgmentColor(Snapshot.LastJudgment.Judgment)));
+			continue;
 		}
 
-		if (DeltaText)
+		if (State.Note.Instrument != ActiveInstrument)
 		{
-			const FString EarlyLate = Snapshot.LastJudgment.DeltaMs < 0.f ? TEXT("early") : TEXT("late");
-			DeltaText->SetText(FText::FromString(FString::Printf(
-				TEXT("%.1f ms %s"),
-				FMath::Abs(Snapshot.LastJudgment.DeltaMs),
-				*EarlyLate)));
+			continue;
 		}
+
+		DrawVisibleNote(State, true, ActiveNoteLayer);
 	}
+
+	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 10, InWidgetStyle, bParentEnabled);
 }
 
-void UAkbalRhythmSpikeWidget::ApplyJudgmentFeedback(EAkbalRhythmJudgment Judgment)
-{
-	if (TapButtonBorder)
-	{
-		TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapPressedColor));
-	}
 
-	if (JudgmentFlashOverlay)
-	{
-		FLinearColor FlashColor = GetJudgmentColor(Judgment);
-		FlashColor.A = 0.45f;
-		JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FlashColor));
-		JudgmentFlashOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
-	}
+
+void UAkbalRhythmSpikeWidget::ApplyJudgmentFeedback(EAkbalRhythmJudgment Judgment)
+
+{
 
 	JudgmentFlashTimeRemaining = 0.35f;
 
 	if (JudgmentText)
+
 	{
+
 		JudgmentText->SetText(FormatJudgmentText(Judgment));
+
 		JudgmentText->SetColorAndOpacity(FSlateColor(GetJudgmentColor(Judgment)));
+
 	}
+
 }
+
+
 
 FLinearColor UAkbalRhythmSpikeWidget::GetJudgmentColor(EAkbalRhythmJudgment Judgment) const
+
 {
+
 	switch (Judgment)
+
 	{
-	case EAkbalRhythmJudgment::Perfect:
-		return FLinearColor(1.f, 0.84f, 0.2f, 1.f);
-	case EAkbalRhythmJudgment::Good:
-		return FLinearColor(0.35f, 0.9f, 0.45f, 1.f);
-	case EAkbalRhythmJudgment::Pass:
-		return FLinearColor(0.95f, 0.75f, 0.2f, 1.f);
-	default:
-		return FLinearColor(0.95f, 0.3f, 0.3f, 1.f);
+
+	case EAkbalRhythmJudgment::Perfect: return FLinearColor(1.f, 0.84f, 0.2f, 1.f);
+
+	case EAkbalRhythmJudgment::Good: return FLinearColor(0.35f, 0.9f, 0.45f, 1.f);
+
+	case EAkbalRhythmJudgment::Pass: return FLinearColor(0.95f, 0.75f, 0.2f, 1.f);
+
+	default: return FLinearColor(0.95f, 0.3f, 0.3f, 1.f);
+
 	}
+
 }
+
+
 
 FText UAkbalRhythmSpikeWidget::FormatJudgmentText(EAkbalRhythmJudgment Judgment) const
+
 {
+
 	switch (Judgment)
+
 	{
-	case EAkbalRhythmJudgment::Perfect:
-		return FText::FromString(TEXT("PERFECT"));
-	case EAkbalRhythmJudgment::Good:
-		return FText::FromString(TEXT("GOOD"));
-	case EAkbalRhythmJudgment::Pass:
-		return FText::FromString(TEXT("PASS"));
-	default:
-		return FText::FromString(TEXT("MISS"));
+
+	case EAkbalRhythmJudgment::Perfect: return FText::FromString(TEXT("PERFECT"));
+
+	case EAkbalRhythmJudgment::Good: return FText::FromString(TEXT("GOOD"));
+
+	case EAkbalRhythmJudgment::Pass: return FText::FromString(TEXT("PASS"));
+
+	default: return FText::FromString(TEXT("MISS"));
+
 	}
+
 }
 
-void UAkbalRhythmSpikeWidget::HandleTapClicked()
-{
-	if (!Conductor)
-	{
-		return;
-	}
 
-	const float InputSeconds = Conductor->GetSecondsSinceTransportStart();
-	const FAkbalRhythmJudgmentResult Result = Conductor->JudgeInputAtSeconds(InputSeconds);
-	ApplyJudgmentFeedback(Result.Judgment);
-
-	if (DeltaText)
-	{
-		const FString EarlyLate = Result.DeltaMs < 0.f ? TEXT("early") : TEXT("late");
-		DeltaText->SetText(FText::FromString(FString::Printf(TEXT("%.1f ms %s"), FMath::Abs(Result.DeltaMs), *EarlyLate)));
-	}
-
-	OnTapSubmitted.Broadcast(Result);
-
-	if (TapButtonBorder)
-	{
-		FTimerHandle ResetColorHandle;
-		GetWorld()->GetTimerManager().SetTimer(
-			ResetColorHandle,
-			FTimerDelegate::CreateWeakLambda(this, [this]()
-			{
-				if (TapButtonBorder)
-				{
-					TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapIdleColor));
-				}
-			}),
-			0.12f,
-			false);
-	}
-}
 
 void UAkbalRhythmSpikeWidget::HandlePauseClicked()
+
 {
+
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+
 	if (!PlayerController || !Conductor)
+
 	{
+
 		return;
+
 	}
 
+
+
 	const bool bShouldPause = !PlayerController->IsPaused();
+
 	PlayerController->SetPause(bShouldPause);
 
 	if (bShouldPause)
+
 	{
+
 		Conductor->PauseEncounter();
+
 	}
+
 	else
+
 	{
+
 		Conductor->ResumeEncounter();
+
 	}
+
 }
+
+
 
 void UAkbalRhythmSpikeWidget::HandleRestartClicked()
+
 {
+
 	if (!Conductor)
+
 	{
+
 		return;
+
 	}
+
+
 
 	Conductor->StopEncounter(true);
+
 	Conductor->StartEncounter(SpikeBeatsPerMinute, SpikeBeatsPerBar);
 
-	if (JudgmentText)
+	RestartChart();
+
+}
+
+
+
+void UAkbalRhythmSpikeWidget::HandleLatencyDecrease()
+
+{
+
+	if (!Conductor)
+
 	{
-		JudgmentText->SetText(FText::FromString(TEXT("Tap on the beat")));
-		JudgmentText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+
+		return;
+
 	}
 
-	if (DeltaText)
-	{
-		DeltaText->SetText(FText::GetEmpty());
-	}
+
+
+	Conductor->SetInputLatencyOffsetMs(Conductor->GetInputLatencyOffsetMs() - 10.f);
+
+	RefreshLatencyLabel();
+
 }
+
+
+
+void UAkbalRhythmSpikeWidget::HandleLatencyIncrease()
+
+{
+
+	if (!Conductor)
+
+	{
+
+		return;
+
+	}
+
+
+
+	Conductor->SetInputLatencyOffsetMs(Conductor->GetInputLatencyOffsetMs() + 10.f);
+
+	RefreshLatencyLabel();
+
+}
+
+
+

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Audio/AkbalMusicalPosition.h"
+#include "Input/AkbalRhythmChartTypes.h"
 #include "Input/AkbalRhythmJudgmentTypes.h"
 #include "AkbalRhythmSpikeActor.generated.h"
 
@@ -46,7 +47,11 @@ protected:
 
 private:
 	void BindInput();
-	void OnTapPressed();
+	void OnLanePressed(EAkbalRhythmLane Lane);
+	void OnLeftLanePressed();
+	void OnRightLanePressed();
+	void OnUpLanePressed();
+	void OnDownLanePressed();
 	void OnRestartPressed();
 	void OnTogglePausePressed();
 	UFUNCTION()

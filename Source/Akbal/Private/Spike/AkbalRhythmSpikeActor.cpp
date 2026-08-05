@@ -7,6 +7,7 @@
 #include "Components/AudioComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
+#include "Input/AkbalRhythmChartTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetasoundSource.h"
 #include "TimerManager.h"
@@ -116,6 +117,7 @@ bool AAkbalRhythmSpikeActor::CreateRhythmWidget()
 	RhythmWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
 	RhythmWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
 	RhythmWidget->SetVisibility(ESlateVisibility::Visible);
+	RhythmWidget->SetIsFocusable(false);
 
 	return true;
 }
@@ -134,14 +136,43 @@ void AAkbalRhythmSpikeActor::BindInput()
 		return;
 	}
 
-	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnTapPressed);
+	InputComponent->BindKey(EKeys::Left, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnLeftLanePressed);
+	InputComponent->BindKey(EKeys::Right, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnRightLanePressed);
+	InputComponent->BindKey(EKeys::Up, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnUpLanePressed);
+	InputComponent->BindKey(EKeys::Down, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnDownLanePressed);
 	InputComponent->BindKey(EKeys::R, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnRestartPressed);
 	InputComponent->BindKey(EKeys::P, IE_Pressed, this, &AAkbalRhythmSpikeActor::OnTogglePausePressed);
 }
 
-void AAkbalRhythmSpikeActor::OnTapPressed()
+void AAkbalRhythmSpikeActor::OnLeftLanePressed()
 {
-	if (!Conductor || (bUseRhythmWidget && RhythmWidget))
+	OnLanePressed(EAkbalRhythmLane::LeftToRight);
+}
+
+void AAkbalRhythmSpikeActor::OnRightLanePressed()
+{
+	OnLanePressed(EAkbalRhythmLane::RightToLeft);
+}
+
+void AAkbalRhythmSpikeActor::OnUpLanePressed()
+{
+	OnLanePressed(EAkbalRhythmLane::TopToBottom);
+}
+
+void AAkbalRhythmSpikeActor::OnDownLanePressed()
+{
+	OnLanePressed(EAkbalRhythmLane::BottomToTop);
+}
+
+void AAkbalRhythmSpikeActor::OnLanePressed(EAkbalRhythmLane Lane)
+{
+	if (RhythmWidget)
+	{
+		RhythmWidget->ProcessLaneInput(Lane);
+		return;
+	}
+
+	if (!Conductor)
 	{
 		return;
 	}
@@ -206,7 +237,7 @@ void AAkbalRhythmSpikeActor::DrawDebugOverlay(const FAkbalConductorDebugSnapshot
 	const FString StateText = Snapshot.bPaused ? TEXT("Paused") : (Snapshot.bClockRunning ? TEXT("Running") : TEXT("Stopped"));
 	const FString Overlay = FString::Printf(
 		TEXT("Akbal Rhythm Spike | %s | %.0f BPM | Bar %d Beat %d (%.2f) | %.2fs | Beats: %d | Latency RT %.1fms G->A %.1fms\n")
-		TEXT("Last: %s | Delta %.1f ms | [Space] Tap  [P] Pause  [R] Restart"),
+		TEXT("Last: %s | Delta %.1f ms | Arrows: lanes | P: Pause | R: Restart"),
 		*StateText,
 		Snapshot.BeatsPerMinute,
 		Snapshot.Position.Bar,
