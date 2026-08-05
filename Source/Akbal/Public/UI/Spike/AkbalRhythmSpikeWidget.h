@@ -23,12 +23,15 @@ class AKBAL_API UAkbalRhythmSpikeWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UAkbalRhythmSpikeWidget(const FObjectInitializer& ObjectInitializer);
+
 	void ConfigureSpike(float InBeatsPerMinute, int32 InBeatsPerBar);
 
 	UPROPERTY(BlueprintAssignable, Category = "Akbal|Spike")
 	FOnAkbalRhythmSpikeTap OnTapSubmitted;
 
 protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 

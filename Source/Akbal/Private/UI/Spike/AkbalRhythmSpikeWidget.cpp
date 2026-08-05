@@ -38,6 +38,37 @@ namespace AkbalRhythmSpikeWidgetStyle
 	}
 }
 
+#include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+
+UAkbalRhythmSpikeWidget::UAkbalRhythmSpikeWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+TSharedRef<SWidget> UAkbalRhythmSpikeWidget::RebuildWidget()
+{
+	if (WidgetTree && !bWidgetBuilt)
+	{
+		BuildWidgetTree();
+	}
+
+	if (WidgetTree && WidgetTree->RootWidget)
+	{
+		return WidgetTree->RootWidget->TakeWidget();
+	}
+
+	return Super::RebuildWidget();
+}
+
+void UAkbalRhythmSpikeWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	Conductor = UAkbalMusicConductorSubsystem::Get(this);
+	SetIsFocusable(true);
+}
+
 void UAkbalRhythmSpikeWidget::ConfigureSpike(float InBeatsPerMinute, int32 InBeatsPerBar)
 {
 	SpikeBeatsPerMinute = InBeatsPerMinute;
@@ -47,19 +78,6 @@ void UAkbalRhythmSpikeWidget::ConfigureSpike(float InBeatsPerMinute, int32 InBea
 	{
 		RebuildBeatIndicators();
 	}
-}
-
-void UAkbalRhythmSpikeWidget::NativeConstruct()
-{
-	if (!bWidgetBuilt)
-	{
-		BuildWidgetTree();
-	}
-
-	Super::NativeConstruct();
-
-	Conductor = UAkbalMusicConductorSubsystem::Get(this);
-	SetIsFocusable(true);
 }
 
 void UAkbalRhythmSpikeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
