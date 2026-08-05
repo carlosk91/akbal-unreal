@@ -3,4 +3,4 @@
 #include "Akbal.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Akbal, "Akbal" );
+IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, Akbal, "Akbal");
