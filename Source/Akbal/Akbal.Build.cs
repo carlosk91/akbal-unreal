@@ -20,7 +20,10 @@ public class Akbal : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"MetasoundEngine"
+			"MetasoundEngine",
+			"UMG",
+			"Slate",
+			"SlateCore"
 		});
 	}
 }

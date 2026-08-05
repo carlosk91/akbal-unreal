@@ -3,11 +3,13 @@
 #include "Spike/AkbalRhythmSpikeActor.h"
 
 #include "Audio/AkbalMusicConductorSubsystem.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/AudioComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetasoundSource.h"
+#include "UI/Spike/AkbalRhythmSpikeWidget.h"
 
 AAkbalRhythmSpikeActor::AAkbalRhythmSpikeActor()
 {
@@ -29,6 +31,11 @@ void AAkbalRhythmSpikeActor::BeginPlay()
 		MetaSoundComponent = UGameplayStatics::SpawnSound2D(this, SpikeMetaSound);
 	}
 
+	if (bUseRhythmWidget)
+	{
+		CreateRhythmWidget();
+	}
+
 	BindInput();
 }
 
@@ -36,12 +43,37 @@ void AAkbalRhythmSpikeActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bShowDebugOverlay || !Conductor)
+	if (!bShowDebugOverlay || !Conductor || bUseRhythmWidget)
 	{
 		return;
 	}
 
 	DrawDebugOverlay(Conductor->GetDebugSnapshot());
+}
+
+void AAkbalRhythmSpikeActor::CreateRhythmWidget()
+{
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	PlayerController->bShowMouseCursor = true;
+	PlayerController->bEnableClickEvents = true;
+	FInputModeUIOnly InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PlayerController->SetInputMode(InputMode);
+
+	RhythmWidget = CreateWidget<UAkbalRhythmSpikeWidget>(PlayerController, UAkbalRhythmSpikeWidget::StaticClass());
+	if (!RhythmWidget)
+	{
+		return;
+	}
+
+	RhythmWidget->ConfigureSpike(SpikeBeatsPerMinute, SpikeBeatsPerBar);
+	RhythmWidget->OnTapSubmitted.AddDynamic(this, &AAkbalRhythmSpikeActor::HandleWidgetTap);
+	RhythmWidget->AddToViewport(0);
 }
 
 void AAkbalRhythmSpikeActor::BindInput()
@@ -65,13 +97,18 @@ void AAkbalRhythmSpikeActor::BindInput()
 
 void AAkbalRhythmSpikeActor::OnTapPressed()
 {
-	if (!Conductor)
+	if (!Conductor || bUseRhythmWidget)
 	{
 		return;
 	}
 
 	const float InputSeconds = Conductor->GetSecondsSinceTransportStart();
 	const FAkbalRhythmJudgmentResult Result = Conductor->JudgeInputAtSeconds(InputSeconds);
+	HandleWidgetTap(Result);
+}
+
+void AAkbalRhythmSpikeActor::HandleWidgetTap(const FAkbalRhythmJudgmentResult& Result)
+{
 	UE_LOG(LogTemp, Log, TEXT("Akbal rhythm tap: %s (delta %.1f ms)"),
 		*UEnum::GetValueAsString(Result.Judgment), Result.DeltaMs);
 
