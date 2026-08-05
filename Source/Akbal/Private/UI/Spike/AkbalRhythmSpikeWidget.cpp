@@ -27,6 +27,15 @@ namespace AkbalRhythmSpikeWidgetStyle
 	static const FLinearColor BeatCurrentColor(1.f, 0.82f, 0.2f, 1.f);
 	static const FLinearColor TapIdleColor(0.12f, 0.45f, 0.72f, 1.f);
 	static const FLinearColor TapPressedColor(0.2f, 0.65f, 0.95f, 1.f);
+
+	static FSlateBrush MakeBoxBrush(const FLinearColor& Color)
+	{
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::Box;
+		Brush.TintColor = FSlateColor(Color);
+		Brush.ImageSize = FVector2D(1.f, 1.f);
+		return Brush;
+	}
 }
 
 void UAkbalRhythmSpikeWidget::ConfigureSpike(float InBeatsPerMinute, int32 InBeatsPerBar)
@@ -42,13 +51,15 @@ void UAkbalRhythmSpikeWidget::ConfigureSpike(float InBeatsPerMinute, int32 InBea
 
 void UAkbalRhythmSpikeWidget::NativeConstruct()
 {
-	Super::NativeConstruct();
-
-	Conductor = UAkbalMusicConductorSubsystem::Get(this);
 	if (!bWidgetBuilt)
 	{
 		BuildWidgetTree();
 	}
+
+	Super::NativeConstruct();
+
+	Conductor = UAkbalMusicConductorSubsystem::Get(this);
+	SetIsFocusable(true);
 }
 
 void UAkbalRhythmSpikeWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -70,7 +81,7 @@ void UAkbalRhythmSpikeWidget::NativeTick(const FGeometry& MyGeometry, float InDe
 			const float Alpha = FMath::Clamp(JudgmentFlashTimeRemaining / 0.35f, 0.f, 1.f) * 0.45f;
 			FLinearColor FlashColor = JudgmentFlashOverlay->GetBrushColor();
 			FlashColor.A = Alpha;
-			JudgmentFlashOverlay->SetBrushColor(FlashColor);
+			JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FlashColor));
 			JudgmentFlashOverlay->SetVisibility(Alpha > 0.01f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		}
 	}
@@ -84,7 +95,7 @@ void UAkbalRhythmSpikeWidget::BuildWidgetTree()
 	}
 
 	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RootBorder"));
-	RootBorder->SetBrushColor(AkbalRhythmSpikeWidgetStyle::PanelColor);
+	RootBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::PanelColor));
 	RootBorder->SetPadding(FMargin(24.f));
 
 	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
@@ -145,8 +156,8 @@ void UAkbalRhythmSpikeWidget::BuildWidgetTree()
 	TapButton->OnClicked.AddDynamic(this, &UAkbalRhythmSpikeWidget::HandleTapClicked);
 
 	TapButtonBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TapButtonBorder"));
-	TapButtonBorder->SetBrushColor(AkbalRhythmSpikeWidgetStyle::TapIdleColor);
-	TapButtonBorder->SetPadding(FMargin(0.f));
+	TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapIdleColor));
+	TapButtonBorder->SetPadding(FMargin(32.f, 24.f));
 	TapButton->SetContent(TapButtonBorder);
 
 	UTextBlock* TapLabel = AddTextBlock(TEXT("TapLabel"), 42, ETextJustify::Center);
@@ -197,7 +208,7 @@ void UAkbalRhythmSpikeWidget::BuildWidgetTree()
 		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
 
 		UBorder* ButtonBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ButtonBorder->SetBrushColor(FLinearColor(0.18f, 0.22f, 0.28f, 1.f));
+		ButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FLinearColor(0.18f, 0.22f, 0.28f, 1.f)));
 		ButtonBorder->SetPadding(FMargin(18.f, 10.f));
 
 		UTextBlock* ButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
@@ -229,7 +240,7 @@ void UAkbalRhythmSpikeWidget::BuildWidgetTree()
 
 	JudgmentFlashOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JudgmentFlashOverlay"));
 	JudgmentFlashOverlay->SetVisibility(ESlateVisibility::Collapsed);
-	JudgmentFlashOverlay->SetBrushColor(FLinearColor::Transparent);
+	JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FLinearColor::Transparent));
 	if (UCanvasPanelSlot* FlashSlot = RootCanvas->AddChildToCanvas(JudgmentFlashOverlay))
 	{
 		FlashSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
@@ -254,7 +265,7 @@ void UAkbalRhythmSpikeWidget::RebuildBeatIndicators()
 	{
 		const FName BorderName = *FString::Printf(TEXT("BeatIndicator_%d"), BeatIndex);
 		UBorder* Indicator = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), BorderName);
-		Indicator->SetBrushColor(AkbalRhythmSpikeWidgetStyle::BeatIdleColor);
+		Indicator->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::BeatIdleColor));
 		Indicator->SetPadding(FMargin(0.f));
 
 		USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
@@ -310,7 +321,7 @@ void UAkbalRhythmSpikeWidget::RefreshVisuals(const FAkbalConductorDebugSnapshot&
 			Color = AkbalRhythmSpikeWidgetStyle::BeatActiveColor;
 		}
 
-		BeatIndicators[BeatIndex]->SetBrushColor(Color);
+		BeatIndicators[BeatIndex]->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(Color));
 	}
 
 	if (BeatProgressBar)
@@ -350,14 +361,14 @@ void UAkbalRhythmSpikeWidget::ApplyJudgmentFeedback(EAkbalRhythmJudgment Judgmen
 {
 	if (TapButtonBorder)
 	{
-		TapButtonBorder->SetBrushColor(AkbalRhythmSpikeWidgetStyle::TapPressedColor);
+		TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapPressedColor));
 	}
 
 	if (JudgmentFlashOverlay)
 	{
 		FLinearColor FlashColor = GetJudgmentColor(Judgment);
 		FlashColor.A = 0.45f;
-		JudgmentFlashOverlay->SetBrushColor(FlashColor);
+		JudgmentFlashOverlay->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(FlashColor));
 		JudgmentFlashOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 
@@ -428,7 +439,7 @@ void UAkbalRhythmSpikeWidget::HandleTapClicked()
 			{
 				if (TapButtonBorder)
 				{
-					TapButtonBorder->SetBrushColor(AkbalRhythmSpikeWidgetStyle::TapIdleColor);
+					TapButtonBorder->SetBrush(AkbalRhythmSpikeWidgetStyle::MakeBoxBrush(AkbalRhythmSpikeWidgetStyle::TapIdleColor));
 				}
 			}),
 			0.12f,

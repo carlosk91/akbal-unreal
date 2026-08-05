@@ -35,7 +35,7 @@ protected:
 	bool bAutoStartEncounter = true;
 
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-	bool bShowDebugOverlay = false;
+	bool bShowDebugOverlay = true;
 
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
 	bool bUseRhythmWidget = true;
@@ -51,9 +51,13 @@ private:
 	void OnTogglePausePressed();
 	UFUNCTION()
 	void HandleWidgetTap(const FAkbalRhythmJudgmentResult& Result);
-	void CreateRhythmWidget();
+	bool CreateRhythmWidget();
+	void TryInitializeSpikeUI();
 	void DrawDebugOverlay(const FAkbalConductorDebugSnapshot& Snapshot) const;
 	void TryPlayMetaSoundClick();
+
+	bool bSpikeUIInitialized = false;
+	FTimerHandle SpikeInitRetryHandle;
 
 	UPROPERTY()
 	TObjectPtr<UAkbalMusicConductorSubsystem> Conductor;

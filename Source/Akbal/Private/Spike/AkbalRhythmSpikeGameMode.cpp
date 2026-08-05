@@ -3,7 +3,9 @@
 #include "Spike/AkbalRhythmSpikeGameMode.h"
 
 #include "Spike/AkbalRhythmSpikeActor.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "TimerManager.h"
 
 AAkbalRhythmSpikeGameMode::AAkbalRhythmSpikeGameMode()
 {
@@ -19,7 +21,33 @@ void AAkbalRhythmSpikeGameMode::StartPlay()
 		return;
 	}
 
+	GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &AAkbalRhythmSpikeGameMode::SpawnSpikeActor));
+}
+
+void AAkbalRhythmSpikeGameMode::SpawnSpikeActor()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		PlayerController->bShowMouseCursor = true;
+		PlayerController->bEnableClickEvents = true;
+		PlayerController->bEnableMouseOverEvents = true;
+
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		PlayerController->SetInputMode(InputMode);
+	}
+
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Name = TEXT("AkbalRhythmSpikeActor");
-	GetWorld()->SpawnActor<AAkbalRhythmSpikeActor>(AAkbalRhythmSpikeActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	GetWorld()->SpawnActor<AAkbalRhythmSpikeActor>(
+		AAkbalRhythmSpikeActor::StaticClass(),
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		SpawnParams);
 }

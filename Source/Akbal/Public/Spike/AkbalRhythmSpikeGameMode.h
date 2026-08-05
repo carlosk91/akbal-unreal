@@ -15,4 +15,7 @@ public:
 	AAkbalRhythmSpikeGameMode();
 
 	virtual void StartPlay() override;
+
+private:
+	void SpawnSpikeActor();
 };

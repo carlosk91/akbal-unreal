@@ -9,6 +9,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetasoundSource.h"
+#include "TimerManager.h"
 #include "UI/Spike/AkbalRhythmSpikeWidget.h"
 
 AAkbalRhythmSpikeActor::AAkbalRhythmSpikeActor()
@@ -31,19 +32,20 @@ void AAkbalRhythmSpikeActor::BeginPlay()
 		MetaSoundComponent = UGameplayStatics::SpawnSound2D(this, SpikeMetaSound);
 	}
 
-	if (bUseRhythmWidget)
-	{
-		CreateRhythmWidget();
-	}
-
-	BindInput();
+	TryInitializeSpikeUI();
 }
 
 void AAkbalRhythmSpikeActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bShowDebugOverlay || !Conductor || bUseRhythmWidget)
+	if (!Conductor)
+	{
+		return;
+	}
+
+	const bool bWidgetActive = bUseRhythmWidget && RhythmWidget != nullptr;
+	if (!bShowDebugOverlay || bWidgetActive)
 	{
 		return;
 	}
@@ -51,29 +53,71 @@ void AAkbalRhythmSpikeActor::Tick(float DeltaSeconds)
 	DrawDebugOverlay(Conductor->GetDebugSnapshot());
 }
 
-void AAkbalRhythmSpikeActor::CreateRhythmWidget()
+void AAkbalRhythmSpikeActor::TryInitializeSpikeUI()
+{
+	if (bSpikeUIInitialized)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PlayerController)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				SpikeInitRetryHandle,
+				this,
+				&AAkbalRhythmSpikeActor::TryInitializeSpikeUI,
+				0.1f,
+				false);
+		}
+		return;
+	}
+
+	if (bUseRhythmWidget)
+	{
+		if (CreateRhythmWidget())
+		{
+			bSpikeUIInitialized = true;
+			BindInput();
+			return;
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Akbal rhythm spike widget failed to create; falling back to debug overlay."));
+	}
+
+	bSpikeUIInitialized = true;
+	BindInput();
+}
+
+bool AAkbalRhythmSpikeActor::CreateRhythmWidget()
 {
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
 	if (!PlayerController)
 	{
-		return;
+		return false;
 	}
 
-	PlayerController->bShowMouseCursor = true;
-	PlayerController->bEnableClickEvents = true;
-	FInputModeUIOnly InputMode;
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	PlayerController->SetInputMode(InputMode);
+	if (RhythmWidget)
+	{
+		return true;
+	}
 
 	RhythmWidget = CreateWidget<UAkbalRhythmSpikeWidget>(PlayerController, UAkbalRhythmSpikeWidget::StaticClass());
 	if (!RhythmWidget)
 	{
-		return;
+		return false;
 	}
 
 	RhythmWidget->ConfigureSpike(SpikeBeatsPerMinute, SpikeBeatsPerBar);
 	RhythmWidget->OnTapSubmitted.AddDynamic(this, &AAkbalRhythmSpikeActor::HandleWidgetTap);
-	RhythmWidget->AddToViewport(0);
+	RhythmWidget->AddToViewport(100);
+	RhythmWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
+	RhythmWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
+	RhythmWidget->SetVisibility(ESlateVisibility::Visible);
+
+	return true;
 }
 
 void AAkbalRhythmSpikeActor::BindInput()
@@ -97,7 +141,7 @@ void AAkbalRhythmSpikeActor::BindInput()
 
 void AAkbalRhythmSpikeActor::OnTapPressed()
 {
-	if (!Conductor || bUseRhythmWidget)
+	if (!Conductor || (bUseRhythmWidget && RhythmWidget))
 	{
 		return;
 	}
