@@ -2,7 +2,7 @@
 id: GTD
 title: Akbal Game Technical Design
 status: working
-last_updated: 2026-07-27
+last_updated: 2026-08-10
 ---
 
 # Akbal — Game Technical Design
@@ -50,29 +50,26 @@ Do not create multiple gameplay modules prematurely. Start with the single `Akba
 Source/Akbal/
 ├── Akbal.Build.cs
 ├── Public/
-│   ├── Ability/
+│   ├── Audio/          # Implemented: conductor subsystem (F001)
+│   ├── Input/          # Implemented: judgment + chart (F001)
+│   ├── Spike/          # Implemented: F001 spike PIE entry
+│   ├── UI/Ritual/      # Implemented: ritual input HUD + session (F001)
+│   ├── UI/Dev/         # Implemented: rhythm harness (F001)
+│   ├── Ability/        # Planned (F002+)
 │   ├── AI/
-│   ├── Audio/
 │   ├── Encounter/
-│   ├── Input/
 │   ├── Player/
 │   ├── Ritual/
 │   ├── Save/
 │   ├── World/
 │   └── Akbal.h
 └── Private/
-    ├── Ability/
-    ├── AI/
-    ├── Audio/
-    ├── Encounter/
-    ├── Input/
-    ├── Player/
-    ├── Ritual/
-    ├── Save/
-    ├── Tests/
-    ├── World/
+    ├── (mirrors Public domains)
+    ├── Tests/          # Akbal.Rhythm.*, Akbal.UI.*
     └── Akbal.cpp
 ```
+
+See [`Docs/04-features/F001-rhythm-conductor/implementation-status.md`](../04-features/F001-rhythm-conductor/implementation-status.md) for the full Phase 1 file map.
 
 Public headers are only for contracts truly used across subsystem/domain boundaries. Internal implementation details stay Private.
 
@@ -149,6 +146,8 @@ Avoid storing encounter rules in Level Blueprint.
 ### Musical conductor
 
 A dedicated conductor service exposes authoritative musical position and quantized events to gameplay systems. The current preferred direction is Quartz for sample-accurate scheduling plus MetaSounds for adaptive/layered rendering, validated by a spike.
+
+**F001 implementation (2026-08-10):** `UAkbalMusicConductorSubsystem` (`UWorldSubsystem`) wraps `UQuartzSubsystem` / `UQuartzClockHandle`. Spike PIE uses `AAkbalRhythmSpikeGameMode`. ADR-0005 remains **Proposed** until manual spike measurements complete.
 
 ## 6. State/data separation
 
