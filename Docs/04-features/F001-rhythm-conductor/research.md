@@ -37,12 +37,15 @@ Cons: Violates SYS-002/TECH-005; frame-rate dependent. Rejected.
 1. Build Editor target.
 2. Open any map (or create `Content/_Akbal/Maps/L_Test_AudioTiming`).
 3. Set Game Mode Override to `AkbalRhythmSpikeGameMode`.
-4. PIE; use **Space** to tap, **P** to toggle pause, **R** to restart clock.
+4. PIE third-person; use **arrow keys** for lanes, **Q/E** for instrument, **P** pause, **R** restart chart.
+5. Use the top-left **Rhythm Harness** panel for BPM, instrument count (1–4), note speed, preview window, and latency.
 
 ### Engine APIs/assets used
 
 - `UAkbalMusicConductorSubsystem`
-- `AAkbalRhythmSpikeActor`
+- `UAkbalRitualInputSession` / `UAkbalRitualInputHud` (production-shaped ritual input overlay)
+- `UAkbalRhythmHarnessWidget` (F001 dev controls)
+- `AAkbalRhythmSpikePlayerController`
 - Optional: `MS_Spike_Click` MetaSound assigned on spike actor
 
 ### Measurement method

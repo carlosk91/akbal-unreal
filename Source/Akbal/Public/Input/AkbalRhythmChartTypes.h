@@ -164,7 +164,9 @@ public:
 
 	/** Mixed spike chart: varied lanes and instruments for instrument-switch testing. */
 
-	static TArray<FAkbalRhythmChartNote> BuildSpikeTestChart(float BeatsPerMinute);
+	static TArray<FAkbalRhythmChartNote> BuildSpikeTestChart(
+		float BeatsPerMinute,
+		int32 AvailableInstrumentCount = FAkbalRhythmInstrumentLibrary::InstrumentCount);
 
 
 

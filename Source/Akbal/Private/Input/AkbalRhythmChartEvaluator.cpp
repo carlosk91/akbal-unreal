@@ -76,6 +76,25 @@ bool FAkbalRhythmChartEvaluator::ShouldAutoMissNote(
 	return LateMs > Windows.PassMs;
 }
 
+bool FAkbalRhythmChartEvaluator::IsNoteWithinPreviewWindow(
+	float CurrentSeconds,
+	float TargetSeconds,
+	float PreviewSeconds)
+{
+	const float TimeUntilHit = TargetSeconds - CurrentSeconds;
+	return TimeUntilHit >= 0.f && TimeUntilHit <= PreviewSeconds;
+}
+
+bool FAkbalRhythmChartEvaluator::IsNoteVisible(
+	float CurrentSeconds,
+	float TargetSeconds,
+	float PreviewSeconds,
+	float /*ApproachSeconds*/)
+{
+	const float TimeUntilHit = TargetSeconds - CurrentSeconds;
+	return TimeUntilHit > KINDA_SMALL_NUMBER && TimeUntilHit <= PreviewSeconds;
+}
+
 bool FAkbalRhythmChartEvaluator::FindNextRequiredNote(
 	const TArray<FAkbalRhythmChartNoteState>& ChartStates,
 	float CurrentSeconds,

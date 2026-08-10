@@ -12,7 +12,6 @@
 class UAkbalMusicConductorSubsystem;
 class UMetaSoundSource;
 class UAudioComponent;
-class UAkbalRhythmSpikeWidget;
 
 UCLASS()
 class AKBAL_API AAkbalRhythmSpikeActor : public AActor
@@ -27,21 +26,17 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-	float SpikeBeatsPerMinute = 120.f;
+	float SpikeBeatsPerMinute = 80.f;
 
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
 	int32 SpikeBeatsPerBar = 4;
 
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-	bool bAutoStartEncounter = true;
+	bool bAutoStartEncounter = false;
 
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
 	bool bShowDebugOverlay = true;
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-	bool bUseRhythmWidget = true;
-
-	/** Optional MetaSound for manual Quartz/MetaSound alignment validation. */
 	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
 	TObjectPtr<UMetaSoundSource> SpikeMetaSound;
 
@@ -56,7 +51,6 @@ private:
 	void OnTogglePausePressed();
 	UFUNCTION()
 	void HandleWidgetTap(const FAkbalRhythmJudgmentResult& Result);
-	bool CreateRhythmWidget();
 	void TryInitializeSpikeUI();
 	void DrawDebugOverlay(const FAkbalConductorDebugSnapshot& Snapshot) const;
 	void TryPlayMetaSoundClick();
@@ -69,7 +63,4 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UAudioComponent> MetaSoundComponent;
-
-	UPROPERTY()
-	TObjectPtr<UAkbalRhythmSpikeWidget> RhythmWidget;
 };

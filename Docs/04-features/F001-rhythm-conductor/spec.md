@@ -34,7 +34,7 @@ Validate that Unreal Quartz can serve as Akbal's authoritative musical clock and
 
 ## Player-facing behavior
 
-Not player-facing in Phase 1. This is a developer spike exercised in a test map via keyboard input and on-screen debug text.
+Not player-facing in Phase 1 as shipped content. The spike game mode exercises a **production-shaped ritual input HUD** (`UAkbalRitualInputHud`) plus a separate **developer harness** (`UAkbalRhythmHarnessWidget`) for pause, restart, latency, BPM, instrument count, and note timing tuning.
 
 ## Functional requirements
 
@@ -44,6 +44,9 @@ Not player-facing in Phase 1. This is a developer spike exercised in a test map 
 - FR-004: Input taps are judged against the nearest beat using configurable millisecond windows.
 - FR-005: Judgment outputs are `Perfect`, `Good`, `Pass`, or `Miss` per TECH-005.
 - FR-006: A spike actor provides on-screen debug readout and keyboard controls for manual validation.
+- FR-007: `UAkbalRitualInputHud` renders a square lane overlay (max 20% of the smaller viewport dimension) centered on the player with equal X/Y scale.
+- FR-008: The HUD shows only notes within a configurable preview horizon (`NotePreviewSeconds`, default 1.0s).
+- FR-009: `UAkbalRhythmHarnessWidget` exposes dev-only controls (BPM, instrument count 1–4, note approach speed, preview window, latency, pause/restart) without coupling to production HUD paint logic.
 
 ## Invariants
 

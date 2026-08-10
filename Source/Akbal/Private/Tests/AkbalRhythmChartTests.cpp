@@ -255,4 +255,68 @@ bool FAkbalRhythmInstrumentSwitchPreservesChartTest::RunTest(const FString& Para
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FAkbalRhythmChartInstrumentCountTest,
+	"Akbal.Rhythm.ChartInstrumentCount",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FAkbalRhythmChartInstrumentCountTest::RunTest(const FString& Parameters)
+{
+	using namespace AkbalRhythmChartTest;
+
+	auto UsesOnlyFirstInstruments = [](const TArray<FAkbalRhythmChartNote>& Notes, int32 InstrumentCount) -> bool
+	{
+		for (const FAkbalRhythmChartNote& Note : Notes)
+		{
+			if (!Note.bRequired)
+			{
+				continue;
+			}
+
+			if (FAkbalRhythmInstrumentLibrary::IndexFromInstrument(Note.Instrument) >= InstrumentCount)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	};
+
+	for (int32 InstrumentCount = 1; InstrumentCount <= 4; ++InstrumentCount)
+	{
+		const TArray<FAkbalRhythmChartNote> Notes = FAkbalRhythmChartBuilder::BuildSpikeTestChart(TestBpm, InstrumentCount);
+		TestTrue(
+			*FString::Printf(TEXT("Spike chart respects instrument count %d"), InstrumentCount),
+			UsesOnlyFirstInstruments(Notes, InstrumentCount));
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FAkbalRhythmNotePreviewVisibilityTest,
+	"Akbal.Rhythm.NotePreviewVisibility",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FAkbalRhythmNotePreviewVisibilityTest::RunTest(const FString& Parameters)
+{
+	const float TargetSeconds = 5.f;
+	const float PreviewSeconds = 1.f;
+	const float ApproachSeconds = 2.25f;
+
+	TestFalse(
+		TEXT("Note outside preview window is hidden"),
+		FAkbalRhythmChartEvaluator::IsNoteVisible(3.5f, TargetSeconds, PreviewSeconds, ApproachSeconds));
+
+	TestTrue(
+		TEXT("Note inside preview window and approaching is visible"),
+		FAkbalRhythmChartEvaluator::IsNoteVisible(4.5f, TargetSeconds, PreviewSeconds, ApproachSeconds));
+
+	TestFalse(
+		TEXT("Note at hit time is hidden"),
+		FAkbalRhythmChartEvaluator::IsNoteVisible(TargetSeconds, TargetSeconds, PreviewSeconds, ApproachSeconds));
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

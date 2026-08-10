@@ -21,6 +21,14 @@ public:
 
 	static bool ShouldAutoMissNote(float CurrentSeconds, float TargetSeconds, const FAkbalRhythmTimingWindows& Windows);
 
+	static bool IsNoteWithinPreviewWindow(float CurrentSeconds, float TargetSeconds, float PreviewSeconds);
+
+	static bool IsNoteVisible(
+		float CurrentSeconds,
+		float TargetSeconds,
+		float PreviewSeconds,
+		float ApproachSeconds);
+
 	/** Earliest required note that has not been consumed or missed and is still hittable. */
 	static bool FindNextRequiredNote(
 		const TArray<FAkbalRhythmChartNoteState>& ChartStates,

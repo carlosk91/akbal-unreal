@@ -132,13 +132,13 @@ FString FAkbalRhythmInstrumentLibrary::GetDisplayName(EAkbalRhythmInstrument Ins
 
 	{
 
-	case EAkbalRhythmInstrument::Drum: return TEXT("Drum");
+	case EAkbalRhythmInstrument::Drum: return TEXT("Percussion");
 
-	case EAkbalRhythmInstrument::Chime: return TEXT("Chime");
+	case EAkbalRhythmInstrument::Chime: return TEXT("Low Pitch");
 
-	case EAkbalRhythmInstrument::String: return TEXT("String");
+	case EAkbalRhythmInstrument::String: return TEXT("Medium Pitch");
 
-	default: return TEXT("Wind");
+	default: return TEXT("High Register");
 
 	}
 
@@ -200,7 +200,9 @@ EAkbalRhythmInstrument FAkbalRhythmChartBuilder::InstrumentFromIndex(int32 Instr
 
 
 
-TArray<FAkbalRhythmChartNote> FAkbalRhythmChartBuilder::BuildSpikeTestChart(float BeatsPerMinute)
+TArray<FAkbalRhythmChartNote> FAkbalRhythmChartBuilder::BuildSpikeTestChart(
+	float BeatsPerMinute,
+	int32 AvailableInstrumentCount)
 
 {
 
@@ -265,6 +267,11 @@ TArray<FAkbalRhythmChartNote> FAkbalRhythmChartBuilder::BuildSpikeTestChart(floa
 
 	const float SecondsPerBeat = FAkbalRhythmJudgmentEvaluator::GetSecondsPerBeat(BeatsPerMinute);
 
+	const int32 SafeInstrumentCount = FMath::Clamp(
+		AvailableInstrumentCount,
+		1,
+		FAkbalRhythmInstrumentLibrary::InstrumentCount);
+
 	TArray<FAkbalRhythmChartNote> Notes;
 
 	Notes.Reserve(UE_ARRAY_COUNT(Templates));
@@ -276,6 +283,14 @@ TArray<FAkbalRhythmChartNote> FAkbalRhythmChartBuilder::BuildSpikeTestChart(floa
 	{
 
 		const FNoteTemplate& Template = Templates[Index];
+
+		if (FAkbalRhythmInstrumentLibrary::IndexFromInstrument(Template.Instrument) >= SafeInstrumentCount)
+
+		{
+
+			continue;
+
+		}
 
 		FAkbalRhythmChartNote Note;
 

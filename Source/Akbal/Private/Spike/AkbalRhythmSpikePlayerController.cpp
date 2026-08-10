@@ -16,7 +16,12 @@
 
 #include "Kismet/GameplayStatics.h"
 
-#include "UI/Spike/AkbalRhythmSpikeWidget.h"
+#include "UI/Dev/AkbalRhythmHarnessWidget.h"
+
+#include "UI/Ritual/AkbalRitualInputHud.h"
+
+#include "UI/Ritual/AkbalRitualInputSession.h"
+#include "UI/Ritual/AkbalRitualViewportLayout.h"
 
 
 
@@ -44,10 +49,9 @@ void AAkbalRhythmSpikePlayerController::BeginPlay()
 
 
 
-	FInputModeGameOnly InputMode;
-
-	InputMode.SetConsumeCaptureMouseDown(false);
-
+	FInputModeGameAndUI InputMode;
+	InputMode.SetHideCursorDuringCapture(false);
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	SetInputMode(InputMode);
 
 	SetShowMouseCursor(true);
@@ -132,65 +136,17 @@ bool AAkbalRhythmSpikePlayerController::TryHandleRhythmKey(const FKey& Key, EInp
 
 
 
-	if (Key == EKeys::Left)
+	if (Key == EKeys::Left) { OnLeftLanePressed(); return true; }
 
-	{
+	if (Key == EKeys::Right) { OnRightLanePressed(); return true; }
 
-		OnLeftLanePressed();
+	if (Key == EKeys::Up) { OnUpLanePressed(); return true; }
 
-		return true;
+	if (Key == EKeys::Down) { OnDownLanePressed(); return true; }
 
-	}
+	if (Key == EKeys::Q) { OnInstrumentPreviousPressed(); return true; }
 
-	if (Key == EKeys::Right)
-
-	{
-
-		OnRightLanePressed();
-
-		return true;
-
-	}
-
-	if (Key == EKeys::Up)
-
-	{
-
-		OnUpLanePressed();
-
-		return true;
-
-	}
-
-	if (Key == EKeys::Down)
-
-	{
-
-		OnDownLanePressed();
-
-		return true;
-
-	}
-
-	if (Key == EKeys::Q)
-
-	{
-
-		OnInstrumentPreviousPressed();
-
-		return true;
-
-	}
-
-	if (Key == EKeys::E)
-
-	{
-
-		OnInstrumentNextPressed();
-
-		return true;
-
-	}
+	if (Key == EKeys::E) { OnInstrumentNextPressed(); return true; }
 
 
 
@@ -208,6 +164,10 @@ void AAkbalRhythmSpikePlayerController::Tick(float DeltaSeconds)
 
 
 
+	UpdateRitualHudLayout();
+
+
+
 	if (!bShowDebugOverlay || !Conductor)
 
 	{
@@ -218,7 +178,7 @@ void AAkbalRhythmSpikePlayerController::Tick(float DeltaSeconds)
 
 
 
-	if (bUseRhythmWidget && RhythmWidget)
+	if (bUseRitualHud && RitualInputHud)
 
 	{
 
@@ -252,11 +212,15 @@ void AAkbalRhythmSpikePlayerController::InitializeSpike()
 
 
 
-	if (Conductor)
+	RitualInputSession = NewObject<UAkbalRitualInputSession>(this);
+
+	if (RitualInputSession && Conductor)
 
 	{
 
-		Conductor->OnBeat.AddDynamic(this, &AAkbalRhythmSpikePlayerController::HandleConductorBeat);
+		RitualInputSession->Initialize(Conductor, DefaultHudConfig);
+
+		RitualInputSession->OnJudgment.AddDynamic(this, &AAkbalRhythmSpikePlayerController::HandleSessionJudgment);
 
 
 
@@ -264,33 +228,19 @@ void AAkbalRhythmSpikePlayerController::InitializeSpike()
 
 		{
 
-			Conductor->StartEncounter(SpikeBeatsPerMinute, SpikeBeatsPerBar);
+			Conductor->StartEncounter(DefaultHudConfig.BeatsPerMinute, DefaultHudConfig.BeatsPerBar);
 
 		}
+
+
+
+		Conductor->OnBeat.AddDynamic(this, &AAkbalRhythmSpikePlayerController::HandleConductorBeat);
 
 	}
 
 
 
-	bool bWidgetReady = false;
-
-	if (bUseRhythmWidget)
-
-	{
-
-		bWidgetReady = CreateRhythmWidget();
-
-		if (!bWidgetReady)
-
-		{
-
-			UE_LOG(LogTemp, Warning, TEXT("Akbal rhythm spike widget failed to create; using debug overlay fallback."));
-
-		}
-
-	}
-
-
+	const bool bWidgetsReady = CreateRitualWidgets();
 
 	bSpikeInitialized = true;
 
@@ -300,11 +250,11 @@ void AAkbalRhythmSpikePlayerController::InitializeSpike()
 
 	{
 
-		const FString Status = bWidgetReady
+		const FString Status = bWidgetsReady
 
-			? TEXT("Akbal rhythm spike ready (arrow keys + Q/E instruments).")
+			? TEXT("Akbal ritual input ready (centered square HUD + harness).")
 
-			: TEXT("Akbal rhythm spike ready (debug overlay fallback).");
+			: TEXT("Akbal ritual input failed to create widgets.");
 
 		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 5.f, FColor::Green, Status);
 
@@ -314,23 +264,11 @@ void AAkbalRhythmSpikePlayerController::InitializeSpike()
 
 
 
-bool AAkbalRhythmSpikePlayerController::CreateRhythmWidget()
+bool AAkbalRhythmSpikePlayerController::CreateRitualWidgets()
 
 {
 
-	if (RhythmWidget)
-
-	{
-
-		return true;
-
-	}
-
-
-
-	RhythmWidget = CreateWidget<UAkbalRhythmSpikeWidget>(this, UAkbalRhythmSpikeWidget::StaticClass());
-
-	if (!RhythmWidget)
+	if (!RitualInputSession)
 
 	{
 
@@ -340,23 +278,100 @@ bool AAkbalRhythmSpikePlayerController::CreateRhythmWidget()
 
 
 
-	RhythmWidget->ConfigureSpike(SpikeBeatsPerMinute, SpikeBeatsPerBar);
+	if (bUseRitualHud && !RitualInputHud)
 
-	RhythmWidget->OnTapSubmitted.AddDynamic(this, &AAkbalRhythmSpikePlayerController::HandleWidgetTap);
+	{
 
-	RhythmWidget->AddToViewport(100);
+		RitualInputHud = CreateWidget<UAkbalRitualInputHud>(this, UAkbalRitualInputHud::StaticClass());
 
-	RhythmWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
+		if (RitualInputHud)
+		{
+			RitualInputHud->BindSession(RitualInputSession, Conductor);
+			RitualInputHud->AddToViewport(50);
+			RitualInputHud->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
 
-	RhythmWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
-
-	RhythmWidget->SetVisibility(ESlateVisibility::Visible);
-
-	RhythmWidget->SetIsFocusable(false);
+	}
 
 
 
-	return RhythmWidget->GetRootWidget() != nullptr;
+	if (bUseRhythmHarness && !RhythmHarness)
+
+	{
+
+		RhythmHarness = CreateWidget<UAkbalRhythmHarnessWidget>(this, UAkbalRhythmHarnessWidget::StaticClass());
+
+		if (RhythmHarness)
+		{
+			RhythmHarness->BindHarness(RitualInputSession, Conductor, this);
+			RhythmHarness->AddToViewport(100);
+			RhythmHarness->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
+			RhythmHarness->SetAlignmentInViewport(FVector2D(0.f, 0.f));
+			RhythmHarness->SetPositionInViewport(FVector2D(16.f, 16.f));
+			RhythmHarness->SetVisibility(ESlateVisibility::Visible);
+		}
+
+	}
+
+
+
+	UpdateRitualHudLayout();
+
+	return RitualInputHud != nullptr || RhythmHarness != nullptr;
+
+}
+
+
+
+void AAkbalRhythmSpikePlayerController::UpdateRitualHudLayout()
+
+{
+
+	if (!RitualInputHud || !RitualInputSession)
+
+	{
+
+		return;
+
+	}
+
+
+
+	int32 ViewportX = 0;
+
+	int32 ViewportY = 0;
+
+	GetViewportSize(ViewportX, ViewportY);
+
+	if (ViewportX <= 0 || ViewportY <= 0)
+
+	{
+
+		return;
+
+	}
+
+
+
+	const float HudSize = FAkbalRitualViewportLayout::ComputeSquareHudSize(
+		ViewportX,
+		ViewportY,
+		RitualInputSession->GetConfig().MaxViewportSizeFraction);
+
+	FVector2D ScreenPosition = FAkbalRitualViewportLayout::ComputeFallbackScreenCenter(ViewportX, ViewportY);
+	if (const APawn* ControlledPawn = GetPawn())
+	{
+		FVector2D ProjectedPosition;
+		if (ProjectWorldLocationToScreen(ControlledPawn->GetActorLocation(), ProjectedPosition, true))
+		{
+			ScreenPosition = ProjectedPosition;
+		}
+	}
+
+	RitualInputHud->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
+	RitualInputHud->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+	RitualInputHud->SetDesiredSizeInViewport(FVector2D(HudSize, HudSize));
+	RitualInputHud->SetPositionInViewport(ScreenPosition, false);
 
 }
 
@@ -382,9 +397,7 @@ void AAkbalRhythmSpikePlayerController::DrawDebugOverlay() const
 
 	const FString Overlay = FString::Printf(
 
-		TEXT("Akbal Rhythm Spike | %s | %.0f BPM | Bar %d Beat %d (%.2f) | %.2fs\n")
-
-		TEXT("Last: %s | Delta %.1f ms | Arrows: lanes | Q/E: instrument | P: pause | R: restart"),
+		TEXT("Akbal Rhythm | %s | %.0f BPM | Bar %d Beat %d"),
 
 		*StateText,
 
@@ -392,15 +405,7 @@ void AAkbalRhythmSpikePlayerController::DrawDebugOverlay() const
 
 		Snapshot.Position.Bar,
 
-		Snapshot.Position.Beat,
-
-		Snapshot.Position.BeatFraction,
-
-		Snapshot.Position.SecondsSinceTransportStart,
-
-		*UEnum::GetValueAsString(Snapshot.LastJudgment.Judgment),
-
-		Snapshot.LastJudgment.DeltaMs);
+		Snapshot.Position.Beat);
 
 
 
@@ -454,11 +459,11 @@ void AAkbalRhythmSpikePlayerController::OnLanePressed(EAkbalRhythmLane Lane)
 
 {
 
-	if (RhythmWidget)
+	if (RitualInputSession)
 
 	{
 
-		RhythmWidget->ProcessLaneInput(Lane);
+		RitualInputSession->ProcessLaneInput(Lane);
 
 	}
 
@@ -470,11 +475,11 @@ void AAkbalRhythmSpikePlayerController::CycleInstrument(int32 Delta)
 
 {
 
-	if (RhythmWidget)
+	if (RitualInputSession)
 
 	{
 
-		RhythmWidget->CycleActiveInstrument(Delta);
+		RitualInputSession->CycleActiveInstrument(Delta);
 
 	}
 
@@ -502,11 +507,11 @@ void AAkbalRhythmSpikePlayerController::OnInstrumentNextPressed()
 
 
 
-void AAkbalRhythmSpikePlayerController::HandleWidgetTap(const FAkbalRhythmJudgmentResult& Result)
+void AAkbalRhythmSpikePlayerController::HandleSessionJudgment(const FAkbalRhythmJudgmentResult& Result)
 
 {
 
-	UE_LOG(LogTemp, Log, TEXT("Akbal rhythm input: %s (delta %.1f ms)"),
+	UE_LOG(LogTemp, Log, TEXT("Akbal ritual input: %s (delta %.1f ms)"),
 
 		*UEnum::GetValueAsString(Result.Judgment), Result.DeltaMs);
 
@@ -544,25 +549,11 @@ void AAkbalRhythmSpikePlayerController::OnRestartPressed()
 
 {
 
-	if (!Conductor)
+	if (RitualInputSession)
 
 	{
 
-		return;
-
-	}
-
-
-
-	Conductor->StopEncounter(true);
-
-	Conductor->StartEncounter(SpikeBeatsPerMinute, SpikeBeatsPerBar);
-
-	if (RhythmWidget)
-
-	{
-
-		RhythmWidget->RestartChart();
+		RitualInputSession->RestartChart();
 
 	}
 
@@ -607,6 +598,5 @@ void AAkbalRhythmSpikePlayerController::OnTogglePausePressed()
 	}
 
 }
-
 
 

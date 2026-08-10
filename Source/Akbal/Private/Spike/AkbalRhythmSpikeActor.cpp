@@ -3,15 +3,15 @@
 #include "Spike/AkbalRhythmSpikeActor.h"
 
 #include "Audio/AkbalMusicConductorSubsystem.h"
-#include "Blueprint/UserWidget.h"
 #include "Components/AudioComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Input/AkbalRhythmChartTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetasoundSource.h"
+#include "Spike/AkbalRhythmSpikePlayerController.h"
 #include "TimerManager.h"
-#include "UI/Spike/AkbalRhythmSpikeWidget.h"
+#include "UI/Ritual/AkbalRitualInputSession.h"
 
 AAkbalRhythmSpikeActor::AAkbalRhythmSpikeActor()
 {
@@ -23,11 +23,6 @@ void AAkbalRhythmSpikeActor::BeginPlay()
 	Super::BeginPlay();
 
 	Conductor = UAkbalMusicConductorSubsystem::Get(this);
-	if (Conductor && bAutoStartEncounter)
-	{
-		Conductor->StartEncounter(SpikeBeatsPerMinute, SpikeBeatsPerBar);
-	}
-
 	if (SpikeMetaSound)
 	{
 		MetaSoundComponent = UGameplayStatics::SpawnSound2D(this, SpikeMetaSound);
@@ -40,13 +35,7 @@ void AAkbalRhythmSpikeActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!Conductor)
-	{
-		return;
-	}
-
-	const bool bWidgetActive = bUseRhythmWidget && RhythmWidget != nullptr;
-	if (!bShowDebugOverlay || bWidgetActive)
+	if (!Conductor || !bShowDebugOverlay)
 	{
 		return;
 	}
@@ -76,50 +65,8 @@ void AAkbalRhythmSpikeActor::TryInitializeSpikeUI()
 		return;
 	}
 
-	if (bUseRhythmWidget)
-	{
-		if (CreateRhythmWidget())
-		{
-			bSpikeUIInitialized = true;
-			BindInput();
-			return;
-		}
-
-		UE_LOG(LogTemp, Warning, TEXT("Akbal rhythm spike widget failed to create; falling back to debug overlay."));
-	}
-
 	bSpikeUIInitialized = true;
 	BindInput();
-}
-
-bool AAkbalRhythmSpikeActor::CreateRhythmWidget()
-{
-	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
-	if (!PlayerController)
-	{
-		return false;
-	}
-
-	if (RhythmWidget)
-	{
-		return true;
-	}
-
-	RhythmWidget = CreateWidget<UAkbalRhythmSpikeWidget>(PlayerController, UAkbalRhythmSpikeWidget::StaticClass());
-	if (!RhythmWidget)
-	{
-		return false;
-	}
-
-	RhythmWidget->ConfigureSpike(SpikeBeatsPerMinute, SpikeBeatsPerBar);
-	RhythmWidget->OnTapSubmitted.AddDynamic(this, &AAkbalRhythmSpikeActor::HandleWidgetTap);
-	RhythmWidget->AddToViewport(100);
-	RhythmWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
-	RhythmWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
-	RhythmWidget->SetVisibility(ESlateVisibility::Visible);
-	RhythmWidget->SetIsFocusable(false);
-
-	return true;
 }
 
 void AAkbalRhythmSpikeActor::BindInput()
@@ -166,10 +113,13 @@ void AAkbalRhythmSpikeActor::OnDownLanePressed()
 
 void AAkbalRhythmSpikeActor::OnLanePressed(EAkbalRhythmLane Lane)
 {
-	if (RhythmWidget)
+	if (AAkbalRhythmSpikePlayerController* SpikePC = Cast<AAkbalRhythmSpikePlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		RhythmWidget->ProcessLaneInput(Lane);
-		return;
+		if (UAkbalRitualInputSession* Session = SpikePC->GetRitualInputSession())
+		{
+			Session->ProcessLaneInput(Lane);
+			return;
+		}
 	}
 
 	if (!Conductor)
@@ -177,8 +127,7 @@ void AAkbalRhythmSpikeActor::OnLanePressed(EAkbalRhythmLane Lane)
 		return;
 	}
 
-	const float InputSeconds = Conductor->GetSecondsSinceTransportStart();
-	const FAkbalRhythmJudgmentResult Result = Conductor->JudgeInputAtSeconds(InputSeconds);
+	const FAkbalRhythmJudgmentResult Result = Conductor->JudgeInputAtSeconds(Conductor->GetSecondsSinceTransportStart());
 	HandleWidgetTap(Result);
 }
 
@@ -192,38 +141,32 @@ void AAkbalRhythmSpikeActor::HandleWidgetTap(const FAkbalRhythmJudgmentResult& R
 
 void AAkbalRhythmSpikeActor::OnRestartPressed()
 {
-	if (!Conductor)
+	if (AAkbalRhythmSpikePlayerController* SpikePC = Cast<AAkbalRhythmSpikePlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
-		return;
+		if (UAkbalRitualInputSession* Session = SpikePC->GetRitualInputSession())
+		{
+			Session->RestartChart();
+		}
 	}
-
-	Conductor->StopEncounter(true);
-	Conductor->StartEncounter(SpikeBeatsPerMinute, SpikeBeatsPerBar);
 }
 
 void AAkbalRhythmSpikeActor::OnTogglePausePressed()
 {
-	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
-	if (!PlayerController)
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 	{
-		return;
-	}
-
-	const bool bShouldPause = !PlayerController->IsPaused();
-	PlayerController->SetPause(bShouldPause);
-
-	if (!Conductor)
-	{
-		return;
-	}
-
-	if (bShouldPause)
-	{
-		Conductor->PauseEncounter();
-	}
-	else
-	{
-		Conductor->ResumeEncounter();
+		const bool bShouldPause = !PlayerController->IsPaused();
+		PlayerController->SetPause(bShouldPause);
+		if (Conductor)
+		{
+			if (bShouldPause)
+			{
+				Conductor->PauseEncounter();
+			}
+			else
+			{
+				Conductor->ResumeEncounter();
+			}
+		}
 	}
 }
 
@@ -236,19 +179,11 @@ void AAkbalRhythmSpikeActor::DrawDebugOverlay(const FAkbalConductorDebugSnapshot
 
 	const FString StateText = Snapshot.bPaused ? TEXT("Paused") : (Snapshot.bClockRunning ? TEXT("Running") : TEXT("Stopped"));
 	const FString Overlay = FString::Printf(
-		TEXT("Akbal Rhythm Spike | %s | %.0f BPM | Bar %d Beat %d (%.2f) | %.2fs | Beats: %d | Latency RT %.1fms G->A %.1fms\n")
-		TEXT("Last: %s | Delta %.1f ms | Arrows: lanes | P: Pause | R: Restart"),
+		TEXT("Akbal Rhythm Spike Actor | %s | %.0f BPM | Bar %d Beat %d"),
 		*StateText,
 		Snapshot.BeatsPerMinute,
 		Snapshot.Position.Bar,
-		Snapshot.Position.Beat,
-		Snapshot.Position.BeatFraction,
-		Snapshot.Position.SecondsSinceTransportStart,
-		Snapshot.BeatCallbackCount,
-		Snapshot.RoundTripLatencyMs,
-		Snapshot.GameToAudioLatencyMs,
-		*UEnum::GetValueAsString(Snapshot.LastJudgment.Judgment),
-		Snapshot.LastJudgment.DeltaMs);
+		Snapshot.Position.Beat);
 
 	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.f, FColor::Cyan, Overlay);
 }
@@ -257,6 +192,7 @@ void AAkbalRhythmSpikeActor::TryPlayMetaSoundClick()
 {
 	if (MetaSoundComponent && SpikeMetaSound)
 	{
+		MetaSoundComponent->SetSound(SpikeMetaSound);
 		MetaSoundComponent->Play();
 	}
 }

@@ -11,8 +11,8 @@
 #include "GameFramework/PlayerController.h"
 
 #include "Input/AkbalRhythmChartTypes.h"
-
 #include "Input/AkbalRhythmJudgmentTypes.h"
+#include "Input/AkbalRitualInputTypes.h"
 
 #include "AkbalRhythmSpikePlayerController.generated.h"
 
@@ -20,7 +20,11 @@
 
 class UAkbalMusicConductorSubsystem;
 
-class UAkbalRhythmSpikeWidget;
+class UAkbalRhythmHarnessWidget;
+
+class UAkbalRitualInputHud;
+
+class UAkbalRitualInputSession;
 
 struct FAkbalMusicalPosition;
 
@@ -52,57 +56,61 @@ public:
 
 
 
+	UAkbalRitualInputSession* GetRitualInputSession() const { return RitualInputSession; }
+
+
+
 protected:
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
-	float SpikeBeatsPerMinute = 120.f;
-
-
-
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-
-	int32 SpikeBeatsPerBar = 4;
+	FAkbalRitualInputHudConfig DefaultHudConfig;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
 	bool bAutoStartEncounter = true;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
-	bool bUseRhythmWidget = true;
-
-
-
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
-
-	bool bShowDebugOverlay = true;
+	bool bUseRitualHud = true;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
+
+	bool bUseRhythmHarness = true;
+
+
+
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
+
+	bool bShowDebugOverlay = false;
+
+
+
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
 	bool bMetronomeEnabled = true;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
 	float MetronomeVolume = 0.75f;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
 	float MetronomeTickFrequencyHz = 880.f;
 
 
 
-	UPROPERTY(EditAnywhere, Category = "Akbal|Spike")
+	UPROPERTY(EditAnywhere, Category = "Akbal|Ritual")
 
 	float MetronomeAccentFrequencyHz = 440.f;
 
@@ -112,7 +120,9 @@ private:
 
 	void InitializeSpike();
 
-	bool CreateRhythmWidget();
+	bool CreateRitualWidgets();
+
+	void UpdateRitualHudLayout();
 
 	void DrawDebugOverlay() const;
 
@@ -158,7 +168,7 @@ private:
 
 	UFUNCTION()
 
-	void HandleWidgetTap(const FAkbalRhythmJudgmentResult& Result);
+	void HandleSessionJudgment(const FAkbalRhythmJudgmentResult& Result);
 
 
 
@@ -176,13 +186,24 @@ private:
 
 	UPROPERTY()
 
-	TObjectPtr<UAkbalRhythmSpikeWidget> RhythmWidget;
+	TObjectPtr<UAkbalRitualInputSession> RitualInputSession;
+
+
+
+	UPROPERTY()
+
+	TObjectPtr<UAkbalRitualInputHud> RitualInputHud;
+
+
+
+	UPROPERTY()
+
+	TObjectPtr<UAkbalRhythmHarnessWidget> RhythmHarness;
 
 
 
 	bool bSpikeInitialized = false;
 
 };
-
 
 
