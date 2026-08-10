@@ -21,3 +21,16 @@ A PR should state:
 - Any remaining `TBD` or risk.
 
 Do not mix unrelated refactors, content edits, and gameplay changes in one PR.
+
+## Testing before merge
+
+For C++ changes, especially timing/input/UI:
+
+```powershell
+.\Scripts\BuildEditor.ps1
+.\Scripts\RunAutomationTests.ps1 -Filter "Akbal" -BuildFirst
+```
+
+Close the Unreal Editor first — Live Coding blocks command-line builds.
+
+For F001 spike manual checks, see [`Docs/04-features/F001-rhythm-conductor/implementation-status.md`](Docs/04-features/F001-rhythm-conductor/implementation-status.md).

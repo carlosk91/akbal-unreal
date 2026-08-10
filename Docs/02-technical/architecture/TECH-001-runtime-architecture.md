@@ -2,6 +2,7 @@
 id: TECH-001
 title: Runtime Architecture
 status: proposed
+last_updated: 2026-08-10
 ---
 
 # Runtime Architecture
@@ -11,6 +12,8 @@ status: proposed
 Start with one runtime module: `Akbal`.
 
 Reason: a two-developer early project benefits more from low ceremony and fast iteration than from speculative module boundaries. Organize by domain folders and extract modules only when dependencies, compile times, editor-only requirements, or ownership justify it.
+
+**F001 domains populated:** `Audio/`, `Input/`, `Spike/`, `UI/Ritual/`, `UI/Dev/`, `Tests/`. See [`F001 implementation-status`](../../04-features/F001-rhythm-conductor/implementation-status.md).
 
 ## C++ / Blueprint boundary
 

@@ -4,6 +4,8 @@ Build a vertical technical slice before broad content production.
 
 ## Phase 0 — Repository bootstrap
 
+**Status: Complete** (merged with Phase 1 branch)
+
 1. Flatten the Unreal project to repository root.
 2. Configure Git LFS and ignore rules.
 3. Add `Public/Private` module structure.
@@ -12,14 +14,24 @@ Build a vertical technical slice before broad content production.
 
 ## Phase 1 — Timing spike
 
-Feature: `F001-rhythm-conductor`
+**Status: Implemented — manual validation pending**
 
-- Validate Quartz/MetaSounds timing.
-- Build musical clock/debug readout.
-- Test input timestamp judgment at multiple frame rates.
-- Validate pause/resume.
+Feature: `F001-rhythm-conductor` — see [`Docs/04-features/F001-rhythm-conductor/implementation-status.md`](../04-features/F001-rhythm-conductor/implementation-status.md)
 
-Do not build full boss AI before this question is stable.
+Delivered:
+
+- Quartz-backed `UAkbalMusicConductorSubsystem` (start/stop/pause/resume, beat subscription, latency introspection).
+- Deterministic judgment math (`FAkbalRhythmJudgmentEvaluator`) with automation tests.
+- Prototype spike chart with four lanes and four instruments.
+- Production-shaped `UAkbalRitualInputHud` + dev `UAkbalRhythmHarnessWidget`.
+- Spike PIE via `AAkbalRhythmSpikeGameMode` (currently set as `GlobalDefaultGameMode` in `Config/DefaultEngine.ini`).
+
+Still open before closing F001:
+
+- Manual latency / pause / MetaSound measurements (`research.md` T006–T007).
+- ADR-0005 promotion (T008).
+
+Do not build full boss AI before manual spike evidence is recorded.
 
 ## Phase 2 — Player resource slice
 

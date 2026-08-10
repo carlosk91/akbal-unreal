@@ -2,6 +2,7 @@
 id: F001
 name: Rhythm Conductor
 status: approved
+last_updated: 2026-08-10
 owners: []
 design_specs:
   - SYS-002
@@ -44,7 +45,7 @@ Not player-facing in Phase 1 as shipped content. The spike game mode exercises a
 - FR-004: Input taps are judged against the nearest beat using configurable millisecond windows.
 - FR-005: Judgment outputs are `Perfect`, `Good`, `Pass`, or `Miss` per TECH-005.
 - FR-006: A spike actor provides on-screen debug readout and keyboard controls for manual validation.
-- FR-007: `UAkbalRitualInputHud` renders a square lane overlay (max 20% of the smaller viewport dimension) centered on the player with equal X/Y scale.
+- FR-007: `UAkbalRitualInputHud` renders a square lane overlay (max fraction of the smaller viewport dimension, prototype default **28%** via `MaxViewportSizeFraction`) centered on the player with equal X/Y scale.
 - FR-008: The HUD shows only notes within a configurable preview horizon (`NotePreviewSeconds`, default 1.0s).
 - FR-009: `UAkbalRhythmHarnessWidget` exposes dev-only controls (BPM, instrument count 1–4, note approach speed, preview window, latency, pause/restart) without coupling to production HUD paint logic.
 
@@ -91,6 +92,13 @@ Then musical position continues from the pre-pause transport without reset.
 - AC-002: Automation tests pass for judgment math and simulated multi-FPS timestamp capture.
 - AC-003: Manual spike map exercise documents Quartz latency and pause/resume in `research.md`.
 - AC-004: MetaSound hook exists for editor-authored validation (asset creation is manual).
+
+## Implementation status
+
+**Delivered on branch `tech/phase-1-rhythm-conductor`** (2026-08-10):
+
+- C++ Quartz conductor, judgment math, spike chart, ritual session, production-shaped HUD, dev harness, spike game mode, and **17 automation tests** (`Akbal.Rhythm.*`, `Akbal.UI.*`).
+- Manual spike measurements and Editor-only assets remain open — see [`implementation-status.md`](implementation-status.md) and tasks T006–T008.
 
 ## TBD / questions
 

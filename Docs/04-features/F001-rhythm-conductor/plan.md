@@ -1,5 +1,7 @@
 # Implementation Plan — F001 Rhythm Conductor (Phase 1 Spike)
 
+> **Implementation evidence:** [`implementation-status.md`](implementation-status.md) — zero-context guide to what was built, how to PIE, and test commands.
+
 ## Governing specs
 
 - SYS-002 Music and Conductor
@@ -50,7 +52,7 @@ AAkbalRhythmSpikeActor (legacy debug harness)
 - Quartz clock lifecycle (create, start, stop, pause, resume).
 - Musical position query and seconds-since-transport.
 - Input timestamp judgment against beat/chart targets.
-- Ritual input HUD layout: square (max 20% of smaller viewport dimension), centered on player via world-to-screen projection.
+- Ritual input HUD layout: square (prototype default **28%** of smaller viewport dimension via `MaxViewportSizeFraction`), centered on player via world-to-screen projection.
 - Note preview window (`NotePreviewSeconds`, default 1.0s) and approach travel (`NoteApproachSeconds`).
 - Automation tests for judgment math, chart filtering, and preview visibility.
 - Optional MetaSound / procedural metronome playback on beat.
@@ -78,7 +80,11 @@ None for Phase 1. Prototype BPM (default 80), timing windows, HUD sizing, previe
 | `UAkbalRitualInputHud` | Production ritual input overlay (lanes, notes, sync center) |
 | `UAkbalRhythmHarnessWidget` | F001 dev harness controls |
 | `AAkbalRhythmSpikePlayerController` | Spike PIE entry point |
-| `AAkbalRhythmSpikeActor` | Legacy debug harness |
+| `AAkbalRhythmSpikeActor` | Legacy optional debug harness (superseded by player controller + harness widget) |
+
+## Source layout (implemented)
+
+See [`implementation-status.md`](implementation-status.md) for the full file map. Key folders: `Audio/`, `Input/`, `UI/Ritual/`, `UI/Dev/`, `Spike/`, `Private/Tests/`.
 
 ## State transitions
 

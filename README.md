@@ -14,7 +14,7 @@ This repository uses **spec-driven development (SDD)**: approved documents defin
 | What engine / platform? | UE **5.7.4**, **Windows**, **single-player** only. |
 | Where is the Unreal project? | Repository root — open `Akbal.uproject` from here. |
 | What rules bind agents? | [`AGENTS.md`](AGENTS.md) (mandatory). Cursor: [`.cursor/rules/`](.cursor/rules/). Rider: [`.aiassistant/rules/`](.aiassistant/rules/). |
-| What should I build next? | Phase 0 bootstrap is complete. Next: **`F001-rhythm-conductor`** — see [`Docs/07-roadmap/INITIAL_IMPLEMENTATION_PLAN.md`](Docs/07-roadmap/INITIAL_IMPLEMENTATION_PLAN.md). |
+| What should I build next? | Phase 1 spike is **implemented**; finish manual validation (T006–T008) then start **`F002-player-resources`**. See [`Docs/07-roadmap/INITIAL_IMPLEMENTATION_PLAN.md`](Docs/07-roadmap/INITIAL_IMPLEMENTATION_PLAN.md). |
 | Where is everything documented? | [`Docs/README.md`](Docs/README.md) — full index. |
 | How do I implement a feature? | Follow [How to implement anything](#how-to-implement-anything) below. |
 
@@ -49,10 +49,10 @@ akbal-unreal/
 │   ├── Akbal.Target.cs
 │   ├── AkbalEditor.Target.cs
 │   └── Akbal/              # Single runtime module (domain folders inside)
-│       ├── Public/         # Cross-boundary headers (Ability, AI, Audio, …)
+│       ├── Public/         # Cross-boundary headers (Audio, Input, Spike, UI, …)
 │       └── Private/        # Implementation + Tests/
 ├── Docs/                   # All design, technical, feature, and governance specs
-├── Scripts/                # Build/automation scripts (when added)
+├── Scripts/                # BuildEditor.ps1, RunAutomationTests.ps1
 ├── SourceAssets/           # Curated import sources (WAV, FBX, etc.) — not raw DAW sessions
 ├── AGENTS.md               # Agent instructions (tool-neutral)
 ├── .cursor/rules/          # Cursor project rules
@@ -213,10 +213,30 @@ Adjust the UE install path if yours differs.
 ### Build Editor target
 
 ```powershell
+.\Scripts\BuildEditor.ps1
+```
+
+Or directly:
+
+```powershell
 & "C:\Program Files\Epic Games\UE_5.7\Engine\Build\BatchFiles\Build.bat" `
   AkbalEditor Win64 Development `
   -Project="$PWD\Akbal.uproject" -WaitMutex
 ```
+
+### Run automation tests
+
+Close the editor first (Live Coding blocks CLI builds):
+
+```powershell
+.\Scripts\RunAutomationTests.ps1 -Filter "Akbal" -BuildFirst
+```
+
+See [`Scripts/README.md`](Scripts/README.md).
+
+### Run the F001 timing spike (PIE)
+
+`Config/DefaultEngine.ini` sets `GlobalDefaultGameMode` to `AAkbalRhythmSpikeGameMode`. Press Play in any map. Controls: arrow keys (lanes), Q/E (instrument), P (pause), R (restart). Full guide: [`Docs/04-features/F001-rhythm-conductor/implementation-status.md`](Docs/04-features/F001-rhythm-conductor/implementation-status.md).
 
 ### IDE setup
 
@@ -240,9 +260,9 @@ Policy details: [`Docs/00-governance/GOV-005-source-control-policy.md`](Docs/00-
 
 | Phase | Status | Focus |
 |---|---|---|
-| **Phase 0** — Repository bootstrap | **Complete** | Flat layout, Docs, Git LFS, module folders, Editor build verified |
-| **Phase 1** — Timing spike | **Next** | `F001-rhythm-conductor` — Quartz/MetaSounds, musical clock, input judgment |
-| Phase 2 | Planned | `F002-player-resources` |
+| **Phase 0** — Repository bootstrap | **Complete** | Flat layout, Docs, Git LFS, module folders, Editor build |
+| **Phase 1** — Timing spike | **Implemented** (manual validation pending) | `F001-rhythm-conductor` — Quartz clock, judgment, ritual HUD, harness. Guide: [`implementation-status.md`](Docs/04-features/F001-rhythm-conductor/implementation-status.md) |
+| **Phase 2** | **Next** | `F002-player-resources` |
 | Phase 3 | Planned | `F003-ritual-sync` |
 | Phase 4+ | Planned | Stun, combat sandbox, path abilities, vertical slice |
 
@@ -259,6 +279,7 @@ Many tuning values, zone genres, and content details remain **`TBD`** by design 
 | Task | Start here |
 |---|---|
 | Implement a new feature | [`AGENTS.md`](AGENTS.md) → feature `SYS-*`/`TECH-*` → `Docs/04-features/F###/` → [`.cursor/skills/implement-feature/`](.cursor/skills/implement-feature/SKILL.md) |
+| Understand what Phase 1 built | [`Docs/04-features/F001-rhythm-conductor/implementation-status.md`](Docs/04-features/F001-rhythm-conductor/implementation-status.md) |
 | Write a feature spec | [`Docs/06-prompts/PROMPT-001-spec-author.md`](Docs/06-prompts/PROMPT-001-spec-author.md) → [`.cursor/skills/spec-feature/`](.cursor/skills/spec-feature/SKILL.md) |
 | Plan implementation | [`Docs/06-prompts/PROMPT-003-technical-planner.md`](Docs/06-prompts/PROMPT-003-technical-planner.md) → [`.cursor/skills/plan-feature/`](.cursor/skills/plan-feature/SKILL.md) |
 | Debug Unreal issue | [`.cursor/skills/unreal-debug/`](.cursor/skills/unreal-debug/SKILL.md) |

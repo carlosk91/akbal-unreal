@@ -1,8 +1,47 @@
 # Proposed Akbal Project Structure
 
-## Recommended change from the current skeleton
+## Current layout (as implemented)
 
-Current:
+Repository root **is** the Unreal project root (Phase 0 complete).
+
+```text
+repo/
+├── Akbal.uproject
+├── Config/
+├── Content/
+│   └── _Akbal/              # First-party assets (maps/MetaSounds TBD for F001)
+├── Source/
+│   ├── Akbal.Target.cs
+│   ├── AkbalEditor.Target.cs
+│   └── Akbal/
+│       ├── Akbal.Build.cs
+│       ├── Public/
+│       │   ├── Audio/       # UAkbalMusicConductorSubsystem, musical position
+│       │   ├── Input/       # Judgment, chart types, ritual config
+│       │   ├── Spike/       # F001 spike game mode / PC / character
+│       │   └── UI/
+│       │       ├── Ritual/  # UAkbalRitualInputHud, session, viewport layout
+│       │       └── Dev/     # UAkbalRhythmHarnessWidget
+│       └── Private/
+│           ├── Audio/
+│           ├── Input/
+│           ├── Spike/
+│           ├── UI/Ritual/
+│           ├── UI/Dev/
+│           ├── UI/Spike/     # Legacy UAkbalRhythmSpikeWidget (deprecated)
+│           └── Tests/       # Akbal.Rhythm.*, Akbal.UI.* automation tests
+├── Docs/
+├── Scripts/                 # BuildEditor.ps1, RunAutomationTests.ps1
+├── SourceAssets/
+├── AGENTS.md
+└── README.md
+```
+
+Planned domain folders (`Ability/`, `AI/`, `Encounter/`, `Player/`, `Ritual/`, `Save/`, `World/`) remain valid targets for Phase 2+; they are not all populated yet.
+
+## Recommended change from the original skeleton
+
+Original:
 
 ```text
 repo/

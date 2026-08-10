@@ -71,7 +71,9 @@ Cons: Violates SYS-002/TECH-005; frame-rate dependent. Rejected.
 
 ## Recommendation
 
-Pending manual measurements (T006–T007). Automated judgment math and FPS timestamp simulation pass in CI.
+**Automated evidence (2026-08-10):** All `Akbal.Rhythm.*` and `Akbal.UI.*` automation tests pass via `.\Scripts\RunAutomationTests.ps1 -Filter "Akbal" -BuildFirst`. Judgment math and FPS timestamp simulation are validated in CI-local runs.
+
+**Manual evidence:** Still required for latency tables, pause drift, and MetaSound alignment (T006–T007).
 
 ## Decision status
 

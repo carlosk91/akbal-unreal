@@ -2,6 +2,7 @@
 id: SYS-002
 title: Music and Conductor
 status: approved
+last_updated: 2026-08-10
 ---
 
 # Music and Conductor
@@ -9,6 +10,10 @@ status: approved
 ## Intent
 
 Music is an authoritative gameplay structure, not background decoration.
+
+## F001 spike alignment
+
+Phase 1 delivers a Quartz-backed prototype conductor (`UAkbalMusicConductorSubsystem`) and chart-driven ritual input session. This validates musical-time judgment but does not implement full encounter arrangements, stem mixing, or section authoring. See [`F001 implementation-status`](../../04-features/F001-rhythm-conductor/implementation-status.md).
 
 ## Requirements
 

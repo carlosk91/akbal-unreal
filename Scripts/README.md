@@ -16,7 +16,7 @@ Repeatable build and test commands for humans and agents. Set `UE_ROOT` to your 
 .\Scripts\RunAutomationTests.ps1 -Filter "Akbal.Rhythm"
 ```
 
-Logs are written to `Saved/Logs/AutomationTests-<Filter>.log`.
+Logs are written to `Saved/Logs/Akbal.log` (parsed for pass/fail summary).
 
 ## Test groups
 

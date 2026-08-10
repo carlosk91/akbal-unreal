@@ -28,10 +28,17 @@
 | FUNC-002 | Beat subscription | Watch harness/conductor readout | Increments on each Quartz beat |
 | FUNC-003 | Lane judgment | Press matching arrow key on beat at 80 BPM with correct instrument selected | `Perfect` or `Good` on intentional hits |
 | FUNC-004 | Pause/resume | Press P to pause game, wait, unpause | Position frozen during pause, resumes correctly |
-| FUNC-005 | Ritual HUD layout | PIE third-person, move player | Square HUD (≤20% min viewport dimension) tracks player center |
+| FUNC-005 | Ritual HUD layout | PIE third-person, move player | Square HUD (≤28% min viewport dimension by default) tracks player center |
 | FUNC-006 | Note preview window | Observe approaching notes | Only notes within ~1s preview appear |
 | FUNC-007 | Harness instrument count | Set 1/2/3 instruments in harness | Chart and HUD show only active channels |
 | FUNC-008 | Ghost notes | Switch instrument with Q/E | Inactive instrument notes visible faded |
+| FUNC-009 | Harness visibility | PIE, look top-left | `UAkbalRhythmHarnessWidget` panel visible with BPM/instrument controls; `LogAkbalRitualUi` reports harness built |
+
+## Automated test names (reference)
+
+Full list in [`implementation-status.md`](implementation-status.md). Groups: `Akbal.Rhythm.*` (13 tests), `Akbal.UI.*` (4 tests).
+
+Run: `.\Scripts\RunAutomationTests.ps1 -Filter "Akbal" -BuildFirst`
 
 ## Manual / feel
 
@@ -55,6 +62,6 @@ Re-run `Akbal.Rhythm` automation group before merging timing changes.
 
 Record:
 
-- Automation command: `Automation RunTests Akbal.Rhythm`
+- Automation: `.\Scripts\RunAutomationTests.ps1 -Filter "Akbal" -BuildFirst`
 - Screenshots of ritual HUD at 30/60/120 FPS
 - `research.md` latency table and pause/resume notes

@@ -29,6 +29,9 @@
 ## Feature work
 
 - `04-features/_template/`
+- **`04-features/F001-rhythm-conductor/`** — Phase 1 timing spike (**start here for current code**)
+  - [`implementation-status.md`](04-features/F001-rhythm-conductor/implementation-status.md) — zero-context guide
+  - `spec.md`, `plan.md`, `tasks.md`, `test-plan.md`, `research.md`
 
 ## Decisions
 
