@@ -122,6 +122,10 @@ private:
 
 	bool CreateRitualWidgets();
 
+	void RetryCreateRitualWidgets();
+
+	void LogRitualUiState() const;
+
 	void UpdateRitualHudLayout();
 
 	void DrawDebugOverlay() const;
@@ -204,6 +208,7 @@ private:
 
 	bool bSpikeInitialized = false;
 
+	FTimerHandle WidgetRetryHandle;
 };
 
 

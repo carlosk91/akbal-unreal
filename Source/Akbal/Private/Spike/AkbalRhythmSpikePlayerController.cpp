@@ -22,6 +22,8 @@
 
 #include "UI/Ritual/AkbalRitualInputSession.h"
 #include "UI/Ritual/AkbalRitualViewportLayout.h"
+#include "UI/Ritual/AkbalRitualUiLog.h"
+#include "TimerManager.h"
 
 
 
@@ -241,10 +243,19 @@ void AAkbalRhythmSpikePlayerController::InitializeSpike()
 
 
 	const bool bWidgetsReady = CreateRitualWidgets();
-
 	bSpikeInitialized = true;
 
+	LogRitualUiState();
 
+	if (!bWidgetsReady && GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			WidgetRetryHandle,
+			this,
+			&AAkbalRhythmSpikePlayerController::RetryCreateRitualWidgets,
+			0.1f,
+			false);
+	}
 
 	if (GEngine)
 
@@ -271,6 +282,8 @@ bool AAkbalRhythmSpikePlayerController::CreateRitualWidgets()
 	if (!RitualInputSession)
 
 	{
+
+		UE_LOG(LogAkbalRitualUi, Warning, TEXT("CreateRitualWidgets: no session"));
 
 		return false;
 
@@ -304,11 +317,26 @@ bool AAkbalRhythmSpikePlayerController::CreateRitualWidgets()
 		if (RhythmHarness)
 		{
 			RhythmHarness->BindHarness(RitualInputSession, Conductor, this);
-			RhythmHarness->AddToViewport(100);
+			RhythmHarness->EnsureHarnessBuilt();
+			RhythmHarness->AddToViewport(1000);
 			RhythmHarness->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
 			RhythmHarness->SetAlignmentInViewport(FVector2D(0.f, 0.f));
 			RhythmHarness->SetPositionInViewport(FVector2D(16.f, 16.f));
+
+			const FVector2D HarnessSize = RhythmHarness->MeasureHarnessSize();
+			RhythmHarness->SetDesiredSizeInViewport(HarnessSize);
 			RhythmHarness->SetVisibility(ESlateVisibility::Visible);
+			RhythmHarness->ForceLayoutPrepass();
+
+			UE_LOG(LogAkbalRitualUi, Log,
+				TEXT("Harness added to viewport: built=%d size=(%.0f, %.0f)"),
+				RhythmHarness->HasBuiltContent(),
+				HarnessSize.X,
+				HarnessSize.Y);
+		}
+		else
+		{
+			UE_LOG(LogAkbalRitualUi, Error, TEXT("Failed to create harness widget"));
 		}
 
 	}
@@ -318,6 +346,70 @@ bool AAkbalRhythmSpikePlayerController::CreateRitualWidgets()
 	UpdateRitualHudLayout();
 
 	return RitualInputHud != nullptr || RhythmHarness != nullptr;
+
+}
+
+
+
+void AAkbalRhythmSpikePlayerController::RetryCreateRitualWidgets()
+
+{
+
+	if (CreateRitualWidgets())
+
+	{
+
+		LogRitualUiState();
+
+		if (GetWorld())
+
+		{
+
+			GetWorld()->GetTimerManager().ClearTimer(WidgetRetryHandle);
+
+		}
+
+	}
+
+}
+
+
+
+void AAkbalRhythmSpikePlayerController::LogRitualUiState() const
+
+{
+
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	GetViewportSize(ViewportX, ViewportY);
+
+	const float HudSize = RitualInputSession
+		? FAkbalRitualViewportLayout::ComputeSquareHudSize(
+			ViewportX,
+			ViewportY,
+			RitualInputSession->GetConfig().MaxViewportSizeFraction)
+		: 0.f;
+
+	UE_LOG(LogAkbalRitualUi, Log,
+		TEXT("Ritual UI state: viewport=%dx%d hud=%s harness=%s hudSize=%.0f harnessBuilt=%d chartNotes=%d"),
+		ViewportX,
+		ViewportY,
+		RitualInputHud ? TEXT("yes") : TEXT("no"),
+		RhythmHarness ? TEXT("yes") : TEXT("no"),
+		HudSize,
+		RhythmHarness && RhythmHarness->HasBuiltContent(),
+		RitualInputSession ? RitualInputSession->GetChartStates().Num() : 0);
+
+	if (GEngine)
+	{
+		const FString Overlay = FString::Printf(
+			TEXT("Akbal UI | HUD:%s Harness:%s | Viewport %dx%d"),
+			RitualInputHud ? TEXT("OK") : TEXT("missing"),
+			(RhythmHarness && RhythmHarness->HasBuiltContent()) ? TEXT("OK") : TEXT("missing"),
+			ViewportX,
+			ViewportY);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 8.f, FColor::Green, Overlay);
+	}
 
 }
 

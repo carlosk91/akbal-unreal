@@ -37,13 +37,53 @@
 #include "Spike/AkbalRhythmSpikePlayerController.h"
 
 #include "UI/Ritual/AkbalRitualInputSession.h"
+#include "UI/Ritual/AkbalRitualUiLog.h"
+#include "Widgets/SWidget.h"
 
+void UAkbalRhythmHarnessWidget::EnsureHarnessBuilt()
+{
+	EnsureWidgetTree();
+	if (!bWidgetBuilt)
+	{
+		BuildWidgetTree();
+	}
+}
 
+bool UAkbalRhythmHarnessWidget::HasBuiltContent() const
+{
+	return WidgetTree && WidgetTree->RootWidget != nullptr;
+}
+
+FVector2D UAkbalRhythmHarnessWidget::MeasureHarnessSize() const
+{
+	if (const TSharedPtr<SWidget> SlateWidget = GetCachedWidget())
+	{
+		const FVector2D MeasuredSize = SlateWidget->GetDesiredSize();
+		if (MeasuredSize.X > 1.f && MeasuredSize.Y > 1.f)
+		{
+			return MeasuredSize;
+		}
+	}
+
+	return FVector2D(DefaultHarnessWidth, DefaultHarnessHeight);
+}
+
+TSharedRef<SWidget> UAkbalRhythmHarnessWidget::RebuildWidget()
+{
+	EnsureHarnessBuilt();
+	return Super::RebuildWidget();
+}
+
+void UAkbalRhythmHarnessWidget::EnsureWidgetTree()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+}
 
 namespace AkbalHarnessStyle
-
 {
-
 	static FSlateBrush MakeBoxBrush(const FLinearColor& Color)
 
 	{
@@ -93,14 +133,6 @@ void UAkbalRhythmHarnessWidget::BindHarness(
 }
 
 
-
-void UAkbalRhythmHarnessWidget::EnsureWidgetTree()
-{
-	if (!WidgetTree)
-	{
-		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
-	}
-}
 
 void UAkbalRhythmHarnessWidget::NativePreConstruct()
 {
@@ -153,12 +185,6 @@ void UAkbalRhythmHarnessWidget::BuildWidgetTree()
 		return;
 
 	}
-
-
-
-	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("HarnessRoot"));
-
-	WidgetTree->RootWidget = RootCanvas;
 
 
 
@@ -458,19 +484,12 @@ void UAkbalRhythmHarnessWidget::BuildWidgetTree()
 
 
 
-	if (UCanvasPanelSlot* MenuSlot = RootCanvas->AddChildToCanvas(MenuPanel))
-	{
-		MenuSlot->SetAnchors(FAnchors(0.f, 0.f, 0.f, 0.f));
-		MenuSlot->SetAlignment(FVector2D(0.f, 0.f));
-		MenuSlot->SetPosition(FVector2D::ZeroVector);
-		MenuSlot->SetAutoSize(true);
-		MenuSlot->SetZOrder(30);
-	}
-
-
+	WidgetTree->RootWidget = MenuPanel;
 
 	bWidgetBuilt = true;
 
+	UE_LOG(LogAkbalRitualUi, Log, TEXT("Harness widget tree built (root=%s)"),
+		*GetNameSafe(WidgetTree ? WidgetTree->RootWidget : nullptr));
 }
 
 

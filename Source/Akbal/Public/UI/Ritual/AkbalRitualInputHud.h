@@ -44,8 +44,6 @@ public:
 
 protected:
 
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-
 	virtual void NativeConstruct() override;
 
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

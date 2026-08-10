@@ -45,16 +45,20 @@ class AKBAL_API UAkbalRhythmHarnessWidget : public UUserWidget
 public:
 
 	void BindHarness(
-
 		UAkbalRitualInputSession* InSession,
-
 		UAkbalMusicConductorSubsystem* InConductor,
-
 		AAkbalRhythmSpikePlayerController* InPlayerController);
 
+	/** Build widget tree if it has not been built yet (safe to call before AddToViewport). */
+	void EnsureHarnessBuilt();
 
+	bool HasBuiltContent() const;
+
+	FVector2D MeasureHarnessSize() const;
 
 protected:
+
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	virtual void NativePreConstruct() override;
 
@@ -71,6 +75,9 @@ private:
 	void EnsureWidgetTree();
 
 	void RefreshLabels() const;
+
+	static constexpr float DefaultHarnessWidth = 380.f;
+	static constexpr float DefaultHarnessHeight = 560.f;
 
 
 

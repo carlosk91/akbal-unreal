@@ -16,20 +16,7 @@
 #include "Styling/CoreStyle.h"
 
 #include "UI/Ritual/AkbalRitualInputSession.h"
-
-#include "Widgets/Layout/SBox.h"
-
-
-
-TSharedRef<SWidget> UAkbalRitualInputHud::RebuildWidget()
-{
-	return SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			Super::RebuildWidget()
-		];
-}
+#include "UI/Ritual/AkbalRitualUiLog.h"
 
 void UAkbalRitualInputHud::BindSession(UAkbalRitualInputSession* InSession, UAkbalMusicConductorSubsystem* InConductor)
 
@@ -517,6 +504,8 @@ int32 UAkbalRitualInputHud::NativePaint(
 
 	const int32 ActiveNoteLayer = LayerId + 8;
 
+	int32 VisibleNoteCount = 0;
+
 
 
 	auto DrawVisibleNote = [&](const FAkbalRhythmChartNoteState& State, bool bActiveInst, int32 LocalLayer)
@@ -554,6 +543,8 @@ int32 UAkbalRitualInputHud::NativePaint(
 		const FLinearColor NoteColor = bActiveInst ? BaseColor : BaseColor.CopyWithNewOpacity(GhostNoteAlpha);
 
 		DrawInstrumentNote(AllottedGeometry, OutDrawElements, LocalLayer, NotePosition, Radius, State.Note.Instrument, NoteColor, !bActiveInst);
+
+		++VisibleNoteCount;
 
 	};
 
@@ -617,7 +608,19 @@ int32 UAkbalRitualInputHud::NativePaint(
 
 	}
 
-
+	static double LastPaintLogSeconds = 0.0;
+	const double NowSeconds = FPlatformTime::Seconds();
+	if (NowSeconds - LastPaintLogSeconds > 2.0)
+	{
+		LastPaintLogSeconds = NowSeconds;
+		UE_LOG(LogAkbalRitualUi, Verbose,
+			TEXT("Ritual HUD paint: size=(%.0f, %.0f) t=%.2f visibleNotes=%d chartNotes=%d"),
+			Size.X,
+			Size.Y,
+			CurrentSeconds,
+			VisibleNoteCount,
+			Session->GetChartStates().Num());
+	}
 
 	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 10, InWidgetStyle, bParentEnabled);
 
